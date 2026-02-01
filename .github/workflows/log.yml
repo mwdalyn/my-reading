@@ -26,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install requests python-dateutil python-dotenv
 
-      - name: Check Python and pip
+      - name: Check Python and pip (debug)
         run: |
           which python
           python --version
@@ -41,6 +41,9 @@ jobs:
         with:
           path: data/reading.sqlite
           key: reading-db
+
+      - name: List installed packages (debug)
+        run: python -m pip list
 
       - name: Sync reading data
         env:
