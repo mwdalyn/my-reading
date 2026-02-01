@@ -38,11 +38,14 @@ jobs:
         run: |
           cat "$GITHUB_EVENT_PATH"
 
-      - name: Cache DB
-        uses: actions/cache@v3
-        with:
-          path: data/reading.sqlite
-          key: reading-db
+      # - name: Cache DB
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: data/reading.sqlite
+      #     key: reading-db
+
+      - name: Clear the database cache (if any)
+        run: rm -rf ~/.cache/pip
 
       - name: Debug Python environment
         run: |
