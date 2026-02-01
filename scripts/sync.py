@@ -271,6 +271,13 @@ if issue.get("body"):
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
+# Add check to confirm all columns are OK
+for col in list(BOOK_METADATA_KEYS):
+    try: 
+        cur.execute(f"ALTER TABLE books ADD COLUMN {col}")
+    except sqlite3.OperationalError: 
+        pass  # Column exists
+
 # Create tables as normal (somewhat redundant; SQL contains condition of "if doesn't exist" already)
 cur.execute(SQL_CREATE_BOOKS) # TODO: Want to get rid of this, is there another way to be robust?
 cur.execute(SQL_CREATE_EVENTS) # TODO: Want to get rid of this, is there another way to be robust?

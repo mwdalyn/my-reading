@@ -36,3 +36,5 @@ Want all reading data in a singular location
 - Develop a "reading WPM" test that could estimate my reading speed over the computer
 
 
+## Resources
+https://www.yamllint.com/
