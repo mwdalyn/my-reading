@@ -1,6 +1,5 @@
-'''
-
-'''
+'''Script to run with GitHub Actions in order to update database with new Issue interactions (publication, closure, comments).
+Creates the database for books, reading progress.'''
 # Imports
 import json, os, requests, re
 import sqlite3
@@ -17,7 +16,7 @@ load_dotenv(dotenv_path=os.path.join(".env"))
 
 # Event path
 EVENT_PATH = os.environ.get("GITHUB_EVENT_PATH") or os.environ.get("GITHUB_TEST_EVENT_PATH")
-
+## Error handling
 if not EVENT_PATH:
     raise RuntimeError(
         "GITHUB_EVENT_PATH or GITHUB_TEST_EVENT_PATH not set. "
@@ -31,7 +30,7 @@ DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
 if not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR)
 
-# Set SQL queries and statements
+# SQL setup
 SQL_CREATE_BOOKS = """
     CREATE TABLE IF NOT EXISTS books (
         issue_id INTEGER PRIMARY KEY,
@@ -80,7 +79,6 @@ SQL_UPSERT_EVENT = """
         updated_on=DATE('now')
 """
 
-
 # Functions
 def parse_title(title):
     '''Simple title parse for each Issue.'''
@@ -122,17 +120,17 @@ def extract_events(text, fallback_date, source, source_id):
     # Return events
     return events
 
-## Body
-# Prepare
+# Begin tasks
+## Prepare by grabbing events (from local or from remote/issue history)
 with open(EVENT_PATH) as f: # EVENT_PATH fixed to eq file path for events.json
     event = json.load(f)
 headers = {
     "Authorization": f"Bearer {os.environ.get('GITHUB_TOKEN','')}",
     "Accept": "application/vnd.github+json"
 }
-# Get issue
+## Grab issue
 issue_url = event["issue"]["url"]
-# Requests of GitHub (if token is set)
+## Requests of GitHub (if token is set)
 if os.environ.get("GITHUB_TOKEN"): # GitHub Actions
     issue_resp = requests.get(issue_url, headers=headers)
     issue_resp.raise_for_status()
@@ -144,11 +142,16 @@ else: # Local testing
     issue = event["issue"] 
     comments = issue.get("comments",[]) 
 
-# Set (simple) knowns
+## Set simple knowns
 title, author = parse_title(issue["title"])
 
-# Log events
-# Issue body text
+# Exit script if the title isn't in the proper format (e.g. signals it's a regular issue for me to address)
+if author is None:
+    print(f"Skipping issue {issue['number']} because title has no '-' or '—'")
+    exit(0)
+
+## Log events
+# Source: Issue body contents (e.g. backdating progress if Issue wasn't published on book start date)
 events = []
 if issue.get("body"):
     for line in issue["body"].splitlines():
@@ -165,7 +168,16 @@ if issue.get("body"):
             # Construct deduplicated source_id
             e["source_id"] = f"issue:{issue['id']}:{e['date'].isoformat()}:{e['page']}"
             events.append(e)
-# Comments
+
+# Source: Comments (e.g. need to handle page updates and log them as daily progress; robust to multiple comments per day)
+# To make robust, check for previous comments in the day
+conn = sqlite3.connect(DB_PATH)
+cur = conn.cursor()
+
+cur.execute(SQL_CREATE_BOOKS) # TODO: Want to get rid of this, is there another way to be robust?
+cur.execute(SQL_CREATE_EVENTS) # TODO: Want to get rid of this, is there another way to be robust?
+
+# Explore comments
 for comment in comments:
     for line in comment["body"].splitlines():
         line = line.strip()
@@ -178,7 +190,17 @@ for comment in comments:
             source_id=None
         )
         for e in events_tmp:
-            e["source_id"] = f"comment:{comment['id']}:{e['date']}:{e['page']}"
+            # Check DB for existing event with same issue_id and date
+            cur.execute("""
+                SELECT source_id FROM reading_events
+                WHERE issue_id=? AND date=?
+            """, (issue['id'], e['date']))
+            existing = cur.fetchone()
+            if existing:
+                e["source_id"] = existing[0]  # Overwrite (source_id = key)
+            else:
+                e["source_id"] = f"comment:{comment['id']}:{e['date']}:{e['page']}" # NOTE: May be able to enhance this for additional uniqueness?
+            # Append
             events.append(e)
 
 # Now have events list
@@ -212,4 +234,3 @@ for e in events:
 # End connection
 conn.commit()
 conn.close()
-
