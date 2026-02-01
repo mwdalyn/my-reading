@@ -42,6 +42,8 @@ SQL_CREATE_BOOKS = """
         date_began TEXT,
         date_ended TEXT,
         publisher TEXT,
+        year_published TEXT,
+        year_edition TEXT,
         isbn TEXT,
         width REAL,
         length REAL,
@@ -67,7 +69,8 @@ SQL_UPSERT_BOOK = """
     INSERT INTO books (
         issue_id, title, author, issue_number, status,
         date_began, date_ended,
-        publisher, isbn, width, length, height, total_pages,
+        publisher, year_published, year_edition, isbn, 
+        width, length, height, total_pages,
         created_on, updated_on
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
@@ -79,6 +82,8 @@ SQL_UPSERT_BOOK = """
         date_began=excluded.date_began,
         date_ended=excluded.date_ended,
         publisher=excluded.publisher,
+        year_published=excluded.year_published,
+        year_edition=excluded.year_edition,
         isbn=excluded.isbn,
         width=excluded.width,
         length=excluded.length,
@@ -99,6 +104,8 @@ SQL_UPSERT_EVENT = """
 ## Set metadata options for additional Issue body context and tracking
 BOOK_METADATA_KEYS = {
     "publisher",
+    "year_published",
+    "year_edition",
     "isbn",
     "width",
     "length",
@@ -263,6 +270,15 @@ if issue.get("body"):
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
+# Check if all desired columns exist in the database
+cur.execute("PRAGMA table_info(books)")
+columns = [row[1] for row in cur.fetchall()]
+for column in list(BOOK_METADATA_KEYS):
+    if column not in columns:
+        cur.execute(f"ALTER TABLE books ADD COLUMN {column} TEXT")
+        print(f"Added column '{column}' to books table.")
+
+# Create tables as normal (somewhat redundant; SQL contains condition of "if doesn't exist" already)
 cur.execute(SQL_CREATE_BOOKS) # TODO: Want to get rid of this, is there another way to be robust?
 cur.execute(SQL_CREATE_EVENTS) # TODO: Want to get rid of this, is there another way to be robust?
 
@@ -325,6 +341,8 @@ cur.execute(SQL_UPSERT_BOOK, (
     None,   # date_began
     None,   # date_ended
     book_metadata["publisher"],
+    book_metadata["year_published"],
+    book_metadata["year_edition"],
     book_metadata["isbn"],
     book_metadata["width"],
     book_metadata["length"],
