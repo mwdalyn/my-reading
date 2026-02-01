@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install requests python-dateutil python-dotenv
+          python -m pip install --no-cache-dir requests python-dateutil python-dotenv
 
       - name: Check Python and pip (debug)
         run: |
@@ -42,8 +42,15 @@ jobs:
           path: data/reading.sqlite
           key: reading-db
 
-      - name: List installed packages (debug)
-        run: python -m pip list
+      - name: Debug Python environment
+        run: |
+          echo "Python binary:"
+          which python
+          python --version
+          echo "Installed packages:"
+          python -m pip list
+          echo "Python paths:"
+          python -c "import sys; print(sys.path)"
 
       - name: Sync reading data
         env:
