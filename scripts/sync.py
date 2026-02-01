@@ -178,7 +178,7 @@ for comment in comments:
             source_id=None
         )
         for e in events_tmp:
-            e["source_id"] = f"comment:{comment['id']}:{e['date'].isoformat()}:{e['page']}"
+            e["source_id"] = f"comment:{comment['id']}:{e['date']}:{e['page']}"
             events.append(e)
 
 # Now have events list
