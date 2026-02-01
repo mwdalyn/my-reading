@@ -68,12 +68,13 @@ SQL_CREATE_EVENTS = """
 SQL_UPSERT_BOOK = """
     INSERT INTO books (
         issue_id, title, author, issue_number, status,
-        date_began, date_ended,
-        publisher, year_published, year_edition, isbn, 
-        width, length, height, total_pages,
+        date_began, date_ended, publisher, year_published, year_edition, 
+        isbn, width, length, height, total_pages,
         created_on, updated_on
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
+    VALUES (?, ?, ?, ?, ?, 
+        ?, ?, ?, ?, ?, 
+        ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
     ON CONFLICT(issue_id) DO UPDATE SET
         title=excluded.title,
         author=excluded.author,
