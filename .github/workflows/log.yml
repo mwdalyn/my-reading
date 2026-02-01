@@ -23,7 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests python-dateutil
+          pip install requests python-dateutil python-dotenv
 
       - name: Dump event payload (local testing)
         run: |
