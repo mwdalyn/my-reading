@@ -348,6 +348,8 @@ cur.execute(SQL_UPSERT_BOOK, (
     book_metadata["length"],
     book_metadata["height"],
     book_metadata["total_pages"],
+    None,   # None to match created_on default and temp fix bug
+    None    # None to match updated_on default and temp fix bug
 ))
 
 # Upsert reading events
