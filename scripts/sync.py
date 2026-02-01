@@ -270,14 +270,6 @@ if issue.get("body"):
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
-# Check if all desired columns exist in the database
-cur.execute("PRAGMA table_info(books)")
-columns = [row[1] for row in cur.fetchall()]
-for column in list(BOOK_METADATA_KEYS):
-    if column not in columns:
-        cur.execute(f"ALTER TABLE books ADD COLUMN {column} TEXT")
-        print(f"Added column '{column}' to books table.")
-
 # Create tables as normal (somewhat redundant; SQL contains condition of "if doesn't exist" already)
 cur.execute(SQL_CREATE_BOOKS) # TODO: Want to get rid of this, is there another way to be robust?
 cur.execute(SQL_CREATE_EVENTS) # TODO: Want to get rid of this, is there another way to be robust?
