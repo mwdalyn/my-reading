@@ -1,0 +1,36 @@
+name: Update reading log
+
+on:
+  issues:
+    types: [opened, edited, closed]
+  issue_comment:
+    types: [created, edited]
+
+permissions: 
+  contents: write
+  issues: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+  
+  steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.9"
+
+    - name: Install dependencies
+      run: |
+        pip install requests python-dateutil
+
+    - name: Dump event payload (local testing)
+      run: |
+        cat "$GITHUB_EVENT_PATH"
+
+    - name: Sync reading data
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python scripts/sync.py

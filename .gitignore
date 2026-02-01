@@ -3,3 +3,5 @@ rough/
 
 # Files
 *.pdf
+*.env
+*.json
