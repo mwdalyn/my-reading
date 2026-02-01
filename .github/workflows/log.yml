@@ -13,7 +13,9 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-
+    if: > 
+      github.event.issue &&
+      contains(github.event.issue.labels.*.name, 'reading')
     steps:
       - uses: actions/checkout@v4
 
