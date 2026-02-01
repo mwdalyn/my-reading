@@ -13,40 +13,40 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-  
-  steps:
-    - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.9"
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        pip install requests python-dateutil
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
 
-    - name: Dump event payload (local testing)
-      run: |
-        cat "$GITHUB_EVENT_PATH"
-    
-    - name: Cache DB
-      uses: actions/cache@v3
-      with:
-        path: data/reading.sqlite
-        key: reading-db
+      - name: Install dependencies
+        run: |
+          pip install requests python-dateutil
 
-    - name: Sync reading data
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        python scripts/sync.py
+      - name: Dump event payload (local testing)
+        run: |
+          cat "$GITHUB_EVENT_PATH"
 
-    - name: Commit updated DB
-      run: |
-        git config --global user.name "github-actions"
-        git config --global user.email "github-actions@github.com"
-        git add data/reading.sqlite
-        git commit -m "Update reading DB [skip ci]" || echo "No changes"
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache DB
+        uses: actions/cache@v3
+        with:
+          path: data/reading.sqlite
+          key: reading-db
+
+      - name: Sync reading data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/sync.py
+
+      - name: Commit updated DB
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add data/reading.sqlite
+          git commit -m "Update reading DB [skip ci]" || echo "No changes"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
