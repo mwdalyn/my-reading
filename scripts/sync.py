@@ -73,7 +73,7 @@ SQL_UPSERT_BOOK = """
         width, length, height, total_pages,
         created_on, updated_on
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
     ON CONFLICT(issue_id) DO UPDATE SET
         title=excluded.title,
         author=excluded.author,
