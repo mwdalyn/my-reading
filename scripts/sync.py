@@ -31,6 +31,7 @@ if not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR)
 
 # SQL setup
+## Create tables
 SQL_CREATE_BOOKS = """
     CREATE TABLE IF NOT EXISTS books (
         issue_id INTEGER PRIMARY KEY,
@@ -40,6 +41,12 @@ SQL_CREATE_BOOKS = """
         status TEXT,
         date_began TEXT,
         date_ended TEXT,
+        publisher TEXT,
+        isbn TEXT,
+        width TEXT,
+        length TEXT,
+        height TEXT,
+        total_pages INTEGER,
         created_on TEXT DEFAULT (DATE('now')),
         updated_on TEXT DEFAULT (DATE('now'))
     )"""
@@ -55,10 +62,15 @@ SQL_CREATE_EVENTS = """
         updated_on TEXT DEFAULT (DATE('now'))
     )
 """
-
+## Upsert into tables
 SQL_UPSERT_BOOK = """
-    INSERT INTO books (issue_id, title, author, issue_number, status, date_began, date_ended, created_on, updated_on)
-    VALUES (?, ?, ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
+    INSERT INTO books (
+        issue_id, title, author, issue_number, status,
+        date_began, date_ended,
+        publisher, isbn, width, length, height, total_pages,
+        created_on, updated_on
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
     ON CONFLICT(issue_id) DO UPDATE SET
         title=excluded.title,
         author=excluded.author,
@@ -66,6 +78,12 @@ SQL_UPSERT_BOOK = """
         status=excluded.status,
         date_began=excluded.date_began,
         date_ended=excluded.date_ended,
+        publisher=excluded.publisher,
+        isbn=excluded.isbn,
+        width=excluded.width,
+        length=excluded.length,
+        height=excluded.height,
+        total_pages=excluded.total_pages,
         updated_on=DATE('now')
 """
 
@@ -78,8 +96,35 @@ SQL_UPSERT_EVENT = """
         source=excluded.source,
         updated_on=DATE('now')
 """
+## Set metadata options for additional Issue body context and tracking
+BOOK_METADATA_KEYS = {
+    "publisher",
+    "isbn",
+    "width",
+    "length",
+    "height",
+    "total_pages",
+} # For use in extract_book_metadata; additional details I wanted to see in each Issue body (NOT reading events)
 
 # Functions
+def parse_int(value):
+    """Try to convert to integer; return None if invalid."""
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+def parse_float(value):
+    """Extract a float from a string; return None if invalid."""
+    # Remove any non-numeric characters except dot or minus
+    match = re.search(r"[-+]?\d*\.?\d+", value)
+    if match:
+        try:
+            return float(match.group())
+        except ValueError:
+            return None
+    return None
+
 def parse_title(title):
     '''Simple title parse for each Issue.'''
     for sep in ["—", "-"]:
@@ -88,12 +133,38 @@ def parse_title(title):
             return t.strip(), a.strip()
     return title.strip(), None
 
+def extract_book_metadata(body):
+    """Allow a preset list of properties to be defined for a book in its issue body. 
+    Parse that data out separately from extract_events."""
+    # Set NULL as column defaults
+    metadata = {k: None for k in BOOK_METADATA_KEYS}
+    if not body: # If no body content, continue with NULLs
+        return metadata
+    
+    for line in body.splitlines(): # Iterate through lines
+        line = line.strip()
+        if not line: # Skip if now empty 
+            continue
+        if ":" not in line or line[0].isdigit(): # If no colon or if it is a date:page update, skip 
+            continue
+        # Begin parsing
+        key, value = line.split(":", 1)
+        key, value = key.strip().lower(), value.strip() # Set column header lowercase
+        # Validate numeric inputs or otherwise pass value through
+        if key in {"width", "length", "height"}:
+            metadata[key] = parse_float(value)
+        elif key == "total_pages":
+            metadata[key] = parse_int(value)
+        else: # Not numeric
+            metadata[key] = value
+    # Return
+    return metadata
+
 def extract_events(text, fallback_date, source, source_id):
-    '''Extracting events from the body of an issue (if applicable) and from comments.'''
+    '''Extracting reading progress events from the body of an issue (if applicable) and from comments.'''
     events = []
     text = text.strip()
-
-    # Handle backdated content in issue body MMDDYYYY : PAGE
+    # Handle content in issue body MMDDYYYY : PAGE
     m = DATED_PAGE_RE.match(text)
     if m:
         # date = parse_date(m.group(1)).date()
@@ -146,12 +217,15 @@ else: # Local testing
 title, author = parse_title(issue["title"])
 
 # Exit script if the title isn't in the proper format (e.g. signals it's a regular issue for me to address)
-if author is None:
+if author is None: # NOTE: This is also handled in the yml where we filter for the label "reading" on workflow issues 
     print(f"Skipping issue {issue['number']} because title has no '-' or '—'")
     exit(0)
 
+## Grab or set metadata
+book_metadata = extract_book_metadata(issue.get("body", ""))
+
 ## Log events
-# Source: Issue body contents (e.g. backdating progress if Issue wasn't published on book start date)
+# Source: Issue (body, e.g. backdating progress if Issue wasn't published on book start date)
 events = []
 if issue.get("body"):
     for line in issue["body"].splitlines():
@@ -219,7 +293,14 @@ cur.execute(SQL_UPSERT_BOOK, (
     issue["number"],
     "completed" if issue["state"] == "closed" else "reading",
     None,   # date_began
-    None    # date_ended
+    None,   # date_ended
+
+    book_metadata["publisher"],
+    book_metadata["isbn"],
+    book_metadata["width"],
+    book_metadata["length"],
+    book_metadata["height"],
+    book_metadata["total_pages"],
 ))
 
 # Upsert reading events
@@ -231,6 +312,7 @@ for e in events:
         e["page"],
         e["source"],
     ))
+
 # End connection
 conn.commit()
 conn.close()
