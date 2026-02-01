@@ -23,8 +23,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install requests python-dateutil python-dotenv
+          python -m pip install --upgrade pip
+          python -m pip install requests python-dateutil python-dotenv
+
+      - name: Check Python and pip
+        run: |
+          which python
+          python --version
+          python -m pip list
 
       - name: Dump event payload (local testing)
         run: |
@@ -40,7 +46,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/sync.py
+          python scripts/sync.py
 
       - name: Commit updated DB
         run: |
