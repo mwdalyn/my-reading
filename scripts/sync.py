@@ -43,9 +43,9 @@ SQL_CREATE_BOOKS = """
         date_ended TEXT,
         publisher TEXT,
         isbn TEXT,
-        width TEXT,
-        length TEXT,
-        height TEXT,
+        width REAL,
+        length REAL,
+        height REAL,
         total_pages INTEGER,
         created_on TEXT DEFAULT (DATE('now')),
         updated_on TEXT DEFAULT (DATE('now'))
@@ -105,6 +105,10 @@ BOOK_METADATA_KEYS = {
     "height",
     "total_pages",
 } # For use in extract_book_metadata; additional details I wanted to see in each Issue body (NOT reading events)
+
+# Enable abandonment
+ABANDON_KEYWORDS = {"abandon","give_up"}
+AUTO_CLOSED_LABEL = "auto-closed" # For automatically closing books marked abandoned (and not going recursive)
 
 # Functions
 def parse_int(value):
@@ -167,11 +171,9 @@ def extract_events(text, fallback_date, source, source_id):
     # Handle content in issue body MMDDYYYY : PAGE
     m = DATED_PAGE_RE.match(text)
     if m:
-        # date = parse_date(m.group(1)).date()
         date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}").date()
-        page = int(m.group(2))
         events.append({
-            "page": page,
+            "page": int(m.group(2)),
             "date": date,
             "source": source,
             "source_id": source_id
@@ -181,15 +183,19 @@ def extract_events(text, fallback_date, source, source_id):
     # Comment only PAGE
     m = PAGE_ONLY_RE.match(text)
     if m:
-        page = int(m.group(1))
         events.append({
-            "page": page,
+            "page": int(m.group(1)),
             "date": fallback_date,
             "source": source,
             "source_id": source_id})
         return events
     # Return events
     return events
+
+def is_abandoned(text):
+    """Return True if text contains any abandonment keyword (case-insensitive)."""
+    text = text.lower()
+    return any(keyword in text for keyword in ABANDON_KEYWORDS)
 
 # Begin tasks
 ## Prepare by grabbing events (from local or from remote/issue history)
@@ -205,10 +211,10 @@ issue_url = event["issue"]["url"]
 if os.environ.get("GITHUB_TOKEN"): # GitHub Actions
     issue_resp = requests.get(issue_url, headers=headers)
     issue_resp.raise_for_status()
-    issue = issue_resp.json()
+    issue = issue_resp.json() # If not fail state, set issue as json response
     comments_resp = requests.get(issue["comments_url"], headers=headers)
     comments_resp.raise_for_status()
-    comments = comments_resp.json()
+    comments = comments_resp.json() # If not fail state, set comments lsit as json response from comments_url 
 else: # Local testing 
     issue = event["issue"] 
     comments = issue.get("comments",[]) 
@@ -216,13 +222,22 @@ else: # Local testing
 ## Set simple knowns
 title, author = parse_title(issue["title"])
 
-# Exit script if the title isn't in the proper format (e.g. signals it's a regular issue for me to address)
-if author is None: # NOTE: This is also handled in the yml where we filter for the label "reading" on workflow issues 
-    print(f"Skipping issue {issue['number']} because title has no '-' or '—'")
-    exit(0)
-
 ## Grab or set metadata
 book_metadata = extract_book_metadata(issue.get("body", ""))
+
+## Check if book has been auto-closed and quit if so
+existing_labels = [l["name"].lower() for l in issue.get("labels", [])]
+if AUTO_CLOSED_LABEL in existing_labels:
+    print(f"Issue #{issue['number']} already auto-closed. Exit workflow.")
+    exit(0)
+
+## Mark book as abandoned and set flag; only care about comments
+abandoned = False
+# Check comments
+for comment in comments:
+    if is_abandoned(comment["body"]):
+        abandoned = True
+        break
 
 ## Log events
 # Source: Issue (body, e.g. backdating progress if Issue wasn't published on book start date)
@@ -234,7 +249,7 @@ if issue.get("body"):
             continue # Skip empty
         events_tmp = extract_events(
             text=line,
-            fallback_date=parse_date(issue["created_at"]).date().isoformat(),
+            fallback_date=parse_date(issue["created_at"]).date(),
             source="issue-body",
             source_id=None  # we’ll set it next
         )
@@ -244,7 +259,7 @@ if issue.get("body"):
             events.append(e)
 
 # Source: Comments (e.g. need to handle page updates and log them as daily progress; robust to multiple comments per day)
-# To make robust, check for previous comments in the day
+# To make robust, check for previous comments in the day (requires setting the connection here rather than down the line)
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
@@ -259,7 +274,7 @@ for comment in comments:
             continue # Skip empty
         events_tmp = extract_events(
             text=line,
-            fallback_date=parse_date(comment["created_at"]).date().isoformat(),
+            fallback_date=parse_date(comment["created_at"]).date(),
             source="comment",
             source_id=None
         )
@@ -273,28 +288,42 @@ for comment in comments:
             if existing:
                 e["source_id"] = existing[0]  # Overwrite (source_id = key)
             else:
-                e["source_id"] = f"comment:{comment['id']}:{e['date']}:{e['page']}" # NOTE: May be able to enhance this for additional uniqueness?
+                e["source_id"] = f"comment:{comment['id']}:{e['date'].isoformat()}:{e['page']}" # NOTE: May be able to enhance this for additional uniqueness?
             # Append
             events.append(e)
+# Now you have an events list
 
-# Now have events list
-## Push to database
-conn = sqlite3.connect(DB_PATH)
-cur = conn.cursor()
-# Create tables
-cur.execute(SQL_CREATE_BOOKS)
-cur.execute(SQL_CREATE_EVENTS)
+# If abandoned and still open, auto-close the GitHub Issue *and* add label
+if abandoned and issue["state"] != "closed" and os.environ.get("GITHUB_TOKEN"):
+    # Close the issue
+    resp = requests.patch(
+        issue["url"],
+        headers=headers,
+        json={"state": "closed"}
+    )
+    resp.raise_for_status()
+    # Add the auto-close label
+    labels_url = issue["labels_url"]  # URL to manage labels
+    resp_labels = requests.post(
+        labels_url,
+        headers=headers,
+        json={"labels": [AUTO_CLOSED_LABEL]}
+    )
+    resp_labels.raise_for_status()
+    # Print
+    print(f"Issue #{issue['number']} marked as abandoned, closed, and labeled '{AUTO_CLOSED_LABEL}'.")
 
-# Upsert book
+# Determine status before upsert
+status = "abandoned" if abandoned else ("completed" if issue["state"] == "closed" else "reading")
+# Upsert
 cur.execute(SQL_UPSERT_BOOK, (
     issue["id"],
     title,
     author,
     issue["number"],
-    "completed" if issue["state"] == "closed" else "reading",
+    status,
     None,   # date_began
     None,   # date_ended
-
     book_metadata["publisher"],
     book_metadata["isbn"],
     book_metadata["width"],
@@ -308,7 +337,7 @@ for e in events:
     cur.execute(SQL_UPSERT_EVENT, (
         e["source_id"],
         issue["id"],
-        e["date"],
+        e["date"].isoformat(),
         e["page"],
         e["source"],
     ))
