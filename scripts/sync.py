@@ -30,7 +30,10 @@ BOOKS_COLUMNS = {
     "length": "REAL",
     "height": "REAL",
     "total_pages": "INTEGER",
-    # NOTE: Add additional columns here as desired or as new metadata becomes available in an issue's body
+    ## NOTE: Add additional columns here as desired or as new metadata becomes available in an issue's body
+    "translator": "TEXT",
+    "collection": "INTEGER", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
+    ##
     "created_on": "TEXT DEFAULT (DATE('now'))",
     "updated_on": "TEXT DEFAULT (DATE('now'))",
 } # All BOOKS table columns including system columns (e.g. not about the book, about the entry of the book into the table)
@@ -74,24 +77,6 @@ DB_DIR = "data"
 DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
 if not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR)
-
-# SQL setup
-## Create tables
-### Removed
-## Upsert into tables
-### Removed
-
-# ## Set metadata options for additional Issue body context and tracking
-# BOOK_METADATA_KEYS = {
-#     "publisher",
-#     "year_published",
-#     "year_edition",
-#     "isbn",
-#     "width",
-#     "length",
-#     "height",
-#     "total_pages",
-# } # For use in extract_book_metadata; additional details I wanted to see in each Issue body (NOT reading events)
 
 # Enable abandonment
 ABANDON_KEYWORDS = {"abandon","give_up"}
