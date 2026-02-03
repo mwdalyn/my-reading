@@ -7,12 +7,57 @@ import sqlite3
 from dateutil.parser import parse as parse_date
 from dotenv import load_dotenv
 
+# Load environment vars
+load_dotenv(dotenv_path=os.path.join(".env"))
+
 # Constants 
 PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$")
 DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
-
-# Load environment vars
-load_dotenv(dotenv_path=os.path.join(".env"))
+## SQL automation
+BOOKS_COLUMNS = {
+    "issue_id": "INTEGER PRIMARY KEY",
+    "title": "TEXT",
+    "author": "TEXT",
+    "issue_number": "INTEGER",
+    "status": "TEXT",
+    "date_began": "TEXT",
+    "date_ended": "TEXT",
+    "publisher": "TEXT",
+    "year_published": "TEXT",
+    "year_edition": "TEXT",
+    "isbn": "TEXT",
+    "width": "REAL",
+    "length": "REAL",
+    "height": "REAL",
+    "total_pages": "INTEGER",
+    # NOTE: Add additional columns here as desired or as new metadata becomes available in an issue's body
+    "created_on": "TEXT DEFAULT (DATE('now'))",
+    "updated_on": "TEXT DEFAULT (DATE('now'))",
+} # All BOOKS table columns including system columns (e.g. not about the book, about the entry of the book into the table)
+BOOK_SYSTEM_COLUMNS = {
+    "issue_id",
+    "title",
+    "author",
+    "issue_number",
+    "status",
+    "date_began",
+    "date_ended",
+    "created_on",
+    "updated_on",
+} # Provided in EVERY case by the creation of a book issue
+BOOK_METADATA_KEYS = {
+    col for col in BOOKS_COLUMNS
+    if col not in BOOK_SYSTEM_COLUMNS
+} # This captures everything "else;" everything that's added into the body of the issue
+READING_EVENTS_COLUMNS = {
+    "source_id": "TEXT PRIMARY KEY",
+    "issue_id": "INTEGER",
+    "date": "TEXT",
+    "page": "INTEGER",
+    "source": "TEXT",
+    "created_on": "TEXT DEFAULT (DATE('now'))",
+    "updated_on": "TEXT DEFAULT (DATE('now'))",
+}
 
 # Event path
 EVENT_PATH = os.environ.get("GITHUB_EVENT_PATH") or os.environ.get("GITHUB_TEST_EVENT_PATH")
@@ -32,93 +77,67 @@ if not os.path.exists(DB_DIR):
 
 # SQL setup
 ## Create tables
-SQL_CREATE_BOOKS = """
-    CREATE TABLE IF NOT EXISTS books (
-        issue_id INTEGER PRIMARY KEY,
-        title TEXT,
-        author TEXT,
-        issue_number INTEGER,
-        status TEXT,
-        date_began TEXT,
-        date_ended TEXT,
-        publisher TEXT,
-        year_published TEXT,
-        year_edition TEXT,
-        isbn TEXT,
-        width REAL,
-        length REAL,
-        height REAL,
-        total_pages INTEGER,
-        created_on TEXT DEFAULT (DATE('now')),
-        updated_on TEXT DEFAULT (DATE('now'))
-    )"""
-
-SQL_CREATE_EVENTS = """
-    CREATE TABLE IF NOT EXISTS reading_events (
-        source_id TEXT PRIMARY KEY,
-        issue_id INTEGER,
-        date TEXT,
-        page INTEGER,
-        source TEXT,
-        created_on TEXT DEFAULT (DATE('now')),
-        updated_on TEXT DEFAULT (DATE('now'))
-    )
-"""
+### Removed
 ## Upsert into tables
-SQL_UPSERT_BOOK = """
-    INSERT INTO books (
-        issue_id, title, author, issue_number, status,
-        date_began, date_ended, publisher, year_published, year_edition, 
-        isbn, width, length, height, total_pages,
-        created_on, updated_on
-    )
-    VALUES (?, ?, ?, ?, ?, 
-        ?, ?, ?, ?, ?, 
-        ?, ?, ?, ?, ?, DATE('now'), DATE('now'))
-    ON CONFLICT(issue_id) DO UPDATE SET
-        title=excluded.title,
-        author=excluded.author,
-        issue_number=excluded.issue_number,
-        status=excluded.status,
-        date_began=excluded.date_began,
-        date_ended=excluded.date_ended,
-        publisher=excluded.publisher,
-        year_published=excluded.year_published,
-        year_edition=excluded.year_edition,
-        isbn=excluded.isbn,
-        width=excluded.width,
-        length=excluded.length,
-        height=excluded.height,
-        total_pages=excluded.total_pages,
-        updated_on=DATE('now')
-"""
+### Removed
 
-SQL_UPSERT_EVENT = """
-    INSERT INTO reading_events (source_id, issue_id, date, page, source, created_on, updated_on)
-    VALUES (?, ?, ?, ?, ?, DATE('now'), DATE('now'))
-    ON CONFLICT(source_id) DO UPDATE SET
-        date=excluded.date,
-        page=excluded.page,
-        source=excluded.source,
-        updated_on=DATE('now')
-"""
-## Set metadata options for additional Issue body context and tracking
-BOOK_METADATA_KEYS = {
-    "publisher",
-    "year_published",
-    "year_edition",
-    "isbn",
-    "width",
-    "length",
-    "height",
-    "total_pages",
-} # For use in extract_book_metadata; additional details I wanted to see in each Issue body (NOT reading events)
+# ## Set metadata options for additional Issue body context and tracking
+# BOOK_METADATA_KEYS = {
+#     "publisher",
+#     "year_published",
+#     "year_edition",
+#     "isbn",
+#     "width",
+#     "length",
+#     "height",
+#     "total_pages",
+# } # For use in extract_book_metadata; additional details I wanted to see in each Issue body (NOT reading events)
 
 # Enable abandonment
 ABANDON_KEYWORDS = {"abandon","give_up"}
 AUTO_CLOSED_LABEL = "auto-closed" # For automatically closing books marked abandoned (and not going recursive)
 
 # Functions
+## Custom SQL generation functions
+def sql_create_table(table_name, columns: dict):
+    '''Creating a SQL table not with a single standard SQL command constant, but with dynamic input.'''
+    cols = ",\n    ".join(f"{name} {ctype}" for name, ctype in columns.items())
+    command = f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
+            {cols}
+        )
+        """
+    return command
+
+def sql_upsert(table, columns: dict, conflict_key: str):
+    '''Upserting dynamically as well.'''
+    col_names = list(columns.keys())
+    insert_cols = ", ".join(col_names)
+    placeholders = ", ".join("?" for _ in col_names)
+    update_cols = ", ".join(
+        f"{c}=excluded.{c}"
+        for c in col_names
+        if c not in {conflict_key, "created_on"}
+    )
+    command = f"""
+        INSERT INTO {table} ({insert_cols})
+        VALUES ({placeholders})
+        ON CONFLICT({conflict_key}) DO UPDATE SET
+            {update_cols}
+        """
+    return command
+
+def ensure_columns(cur, table_name, columns: dict):
+    '''Checking existing tables and ensure/adding columns, allows for dynamic input.'''
+    cur.execute(f"PRAGMA table_info({table_name})")
+    existing = {row[1] for row in cur.fetchall()}
+    # Iterate
+    for name, ctype in columns.items():
+        if name not in existing:
+            cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {name} {ctype}")
+
+
+## Other functions
 def parse_int(value):
     """Try to convert to integer; return None if invalid."""
     try:
@@ -155,17 +174,20 @@ def extract_book_metadata(body):
     
     for line in body.splitlines(): # Iterate through lines
         line = line.strip()
-        if not line: # Skip if now empty 
-            continue
-        if ":" not in line or line[0].isdigit(): # If no colon or if it is a date:page update, skip 
+        if not line or ":" not in line or line[0].isdigit(): # If no colon or if it is a date:page update, skip 
             continue
         # Begin parsing
         key, value = line.split(":", 1)
         key, value = key.strip().lower(), value.strip() # Set column header lowercase
+        # Skip if key (column) not provided in BOOK_COLUMNS (BOOK_METADATA_KEYS)
+        if key not in BOOK_METADATA_KEYS:
+            continue
+        # Data type handling
+        sql_type = BOOKS_COLUMNS[key].upper()
         # Validate numeric inputs or otherwise pass value through
-        if key in {"width", "length", "height"}:
+        if "REAL" in sql_type:
             metadata[key] = parse_float(value)
-        elif key == "total_pages":
+        elif "INTEGER" in sql_type:
             metadata[key] = parse_int(value)
         else: # Not numeric
             metadata[key] = value
@@ -271,16 +293,13 @@ if issue.get("body"):
 conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
-# Add check to confirm all columns are OK
-for col in list(BOOK_METADATA_KEYS):
-    try: 
-        cur.execute(f"ALTER TABLE books ADD COLUMN {col}")
-    except sqlite3.OperationalError: 
-        pass  # Column exists
-
 # Create tables as normal (somewhat redundant; SQL contains condition of "if doesn't exist" already)
-cur.execute(SQL_CREATE_BOOKS) # TODO: Want to get rid of this, is there another way to be robust?
-cur.execute(SQL_CREATE_EVENTS) # TODO: Want to get rid of this, is there another way to be robust?
+cur.execute(sql_create_table("books", BOOKS_COLUMNS)) # New: for dynamic column addition
+cur.execute(sql_create_table("reading_events", READING_EVENTS_COLUMNS)) # New: for dynamic column addition
+
+# Add check to confirm all columns are OK
+ensure_columns(cur, "books", BOOKS_COLUMNS)
+ensure_columns(cur, "reading_events", READING_EVENTS_COLUMNS)
 
 # Explore comments
 for comment in comments:
@@ -331,34 +350,44 @@ if abandoned and issue["state"] != "closed" and os.environ.get("GITHUB_TOKEN"):
 
 # Determine status before upsert
 status = "abandoned" if abandoned else ("completed" if issue["state"] == "closed" else "reading")
-# Upsert
-cur.execute(SQL_UPSERT_BOOK, (
-    issue["id"],
-    title,
-    author,
-    issue["number"],
-    status,
-    None,   # date_began
-    None,   # date_ended
-    book_metadata["publisher"],
-    book_metadata["year_published"],
-    book_metadata["year_edition"],
-    book_metadata["isbn"],
-    book_metadata["width"],
-    book_metadata["length"],
-    book_metadata["height"],
-    book_metadata["total_pages"],
-))
 
-# Upsert reading events
+# Set up upsert(s)
+SQL_UPSERT_BOOK = sql_upsert("books", BOOKS_COLUMNS, "issue_id")
+SQL_UPSERT_EVENT = sql_upsert("reading_events", READING_EVENTS_COLUMNS, "source_id")
+## Define and perform book upsert
+book_row = {
+    "issue_id": issue["id"],
+    "title": title,
+    "author": author,
+    "issue_number": issue["number"],
+    "status": status,
+    "date_began": None,
+    "date_ended": None,
+    **book_metadata, # Non-system columns; book metadata columns
+    "created_on": None,
+    "updated_on": None,
+}
+## Upsert
+cur.execute(
+    SQL_UPSERT_BOOK, 
+    tuple(book_row[c] for c in BOOKS_COLUMNS))
+
+## Perform events upsert
 for e in events:
-    cur.execute(SQL_UPSERT_EVENT, (
-        e["source_id"],
-        issue["id"],
-        e["date"].isoformat(),
-        e["page"],
-        e["source"],
-    ))
+    event_row = {
+        "source_id": e["source_id"],
+        "issue_id": issue["id"],
+        "date": e["date"].isoformat(),
+        "page": e["page"],
+        "source": e["source"],
+        "created_on": None,
+        "updated_on": None,
+    }
+    # Upsert events
+    cur.execute(
+        SQL_UPSERT_EVENT,
+        tuple(event_row[col] for col in READING_EVENTS_COLUMNS)
+    )
 
 # End connection
 conn.commit()
