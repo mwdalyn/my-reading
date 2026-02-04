@@ -24,7 +24,7 @@ jobs:
 
       - name: Update reading goals database
         run: |
-          python scripts/update_reading_goals.py
+          python scripts/set_goals.py
 
       - name: Commit updated database
         run: |
