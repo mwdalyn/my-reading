@@ -1,4 +1,4 @@
-name: Update Reading Goals
+name: Update reading goals
 
 on:
   push:
