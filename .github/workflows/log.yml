@@ -1,14 +1,15 @@
 name: Update reading log
 
+permissions: 
+  contents: write
+  issues: read
+
 on:
   issues:
     types: [opened, edited, closed]
   issue_comment:
     types: [created, edited]
-
-permissions: 
-  contents: write
-  issues: read
+  workflow_dispatch:
 
 jobs:
   sync:
