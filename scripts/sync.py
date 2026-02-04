@@ -16,10 +16,10 @@ DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
 ## SQL automation
 BOOKS_COLUMNS = {
     "issue_id": "INTEGER PRIMARY KEY",
-    "title": "TEXT",
-    "author": "TEXT",
+    "title": "TEXT", # Issue title
+    "author": "TEXT", # Issue title
     "issue_number": "INTEGER",
-    "status": "TEXT",
+    "status": "TEXT", # Set automatically upon sync workflow, script based on issue status and comments
     "date_began": "TEXT",
     "date_ended": "TEXT",
     "publisher": "TEXT",
@@ -31,7 +31,7 @@ BOOKS_COLUMNS = {
     "height": "REAL",
     "total_pages": "INTEGER",
     ## NOTE: Add additional columns here as desired or as new metadata becomes available in an issue's body
-    "translator": "TEXT",
+    "translator": "TEXT", # last_name, first_name
     "collection": "INTEGER", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
     ##
     "created_on": "TEXT DEFAULT (DATE('now'))",
