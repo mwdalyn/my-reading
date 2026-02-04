@@ -1,0 +1,4 @@
+year: 2026
+goal_name: Annual Goal 2026
+book_goal: 35
+page_goal: 12250

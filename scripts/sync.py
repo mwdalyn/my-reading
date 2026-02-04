@@ -84,7 +84,7 @@ AUTO_CLOSED_LABEL = "auto-closed" # For automatically closing books marked aband
 
 # Functions
 ## Custom SQL generation functions
-def sql_create_table(table_name, columns: dict):
+def sql_create_table(table_name, columns):
     '''Creating a SQL table not with a single standard SQL command constant, but with dynamic input.'''
     cols = ",\n    ".join(f"{name} {ctype}" for name, ctype in columns.items())
     command = f"""
@@ -94,7 +94,7 @@ def sql_create_table(table_name, columns: dict):
         """
     return command
 
-def sql_upsert(table, columns: dict, conflict_key: str):
+def sql_upsert(table, columns, conflict_key):
     '''Upserting dynamically as well.'''
     col_names = list(columns.keys())
     insert_cols = ", ".join(col_names)
@@ -112,7 +112,7 @@ def sql_upsert(table, columns: dict, conflict_key: str):
         """
     return command
 
-def ensure_columns(cur, table_name, columns: dict):
+def ensure_columns(cur, table_name, columns):
     '''Checking existing tables and ensure/adding columns, allows for dynamic input.'''
     cur.execute(f"PRAGMA table_info({table_name})")
     existing = {row[1] for row in cur.fetchall()}
@@ -120,7 +120,6 @@ def ensure_columns(cur, table_name, columns: dict):
     for name, ctype in columns.items():
         if name not in existing:
             cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {name} {ctype}")
-
 
 ## Other functions
 def parse_int(value):
