@@ -72,13 +72,17 @@ jobs:
             git commit -m "Update reading DB"
           fi
 
-          # Fetch the latest commits from the remote for the current branch
-          git fetch origin
-
-          # Rebase local changes on top of remote to avoid push errors (encountered this error)
-          git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
-
-          # Push to the current branch
-          git push origin HEAD
+          # Retry loop for push (handles race conditions)
+          for i in {1..5}; do
+            git fetch origin
+            git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
+            if git push origin HEAD; then
+              echo "Push succeeded"
+              break
+            else
+              echo "Push failed, retrying..."
+              sleep 2
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
