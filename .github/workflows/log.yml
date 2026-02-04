@@ -18,7 +18,9 @@ jobs:
       contains(github.event.issue.labels.*.name, 'reading')
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0
+      
       - uses: actions/setup-python@v5
         with:
           python-version: "3.9"
@@ -37,12 +39,6 @@ jobs:
       - name: Dump event payload (local testing)
         run: |
           cat "$GITHUB_EVENT_PATH"
-
-      # - name: Cache DB
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: data/reading.sqlite
-      #     key: reading-db
 
       - name: Clear the database cache (if any)
         run: rm -rf ~/.cache/pip
@@ -67,8 +63,22 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
+
+          # Add the updated DB
           git add data/reading.sqlite
-          git commit -m "Update reading DB [skip ci]" || echo "No changes"
-          git push
+
+          # Commit only if there are changes
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Update reading DB"
+          fi
+
+          # Fetch the latest commits from the remote for the current branch
+          git fetch origin
+
+          # Rebase local changes on top of remote to avoid push errors (encountered this error)
+          git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
+
+          # Push to the current branch
+          git push origin HEAD
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
