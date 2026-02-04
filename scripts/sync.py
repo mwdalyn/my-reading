@@ -30,7 +30,7 @@ BOOKS_COLUMNS = {
     "length": "REAL",
     "height": "REAL",
     "total_pages": "INTEGER",
-    ## NOTE: Add additional columns here as desired or as new metadata becomes available in an issue's body
+    ## 
     "translator": "TEXT", # last_name, first_name
     "collection": "INTEGER", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
     ##
