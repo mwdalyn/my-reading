@@ -122,6 +122,37 @@ def ensure_columns(cur, table_name, columns):
         if name not in existing:
             cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {name} {ctype}")
 
+def fill_missing_created_on(cur, books_table="books", events_table="reading_events"):
+    """Fill created_on if NULL for books table rows using the earliest of:
+      (a) the book's date_began, or (b) the earliest associated reading_event date."""
+    # Find all books where created_on is NULL
+    cur.execute(f"SELECT issue_id, date_began FROM {books_table} WHERE created_on IS NULL")
+    rows = cur.fetchall()
+    # Iter
+    for issue_id, date_began in rows:
+        # Earliest associated reading_event
+        cur.execute(f"SELECT MIN(date) FROM {events_table} WHERE issue_id = ?", (issue_id,))
+        earliest_event = cur.fetchone()[0]  # Returns string date or None
+        # Determine fill value
+        fill_date = None
+        if date_began and earliest_event:
+            fill_date = min(date_began, earliest_event)
+        elif date_began:
+            fill_date = date_began
+        elif earliest_event:
+            fill_date = earliest_event
+        
+        if fill_date:
+            cur.execute(f"""
+                UPDATE {books_table}
+                SET created_on = ?
+                WHERE issue_id = ?
+            """, (fill_date, issue_id))
+    # Commit
+    conn.commit()
+    print(f"Filled created_on for {len(rows)} books where it was NULL.")
+
+
 ## Other functions
 def parse_int(value):
     """Try to convert to integer; return None if invalid."""
@@ -301,6 +332,9 @@ else:
 
 # Compute date_ended
 date_ended = parse_date(issue["closed_at"]).date() if issue.get("closed_at") else None
+
+# QA/QC: Infill missing created_on values for books table
+fill_missing_created_on(cur)
 
 
 # Explore comments
