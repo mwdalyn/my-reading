@@ -371,7 +371,8 @@ book_row = {
 ## Upsert
 cur.execute(
     SQL_UPSERT_BOOK, 
-    tuple(book_row[c] for c in BOOKS_COLUMNS))
+    # tuple(book_row[c] for c in BOOKS_COLUMNS)) # Remove for testing 
+    tuple(book_row.get(c) for c in BOOKS_COLUMNS))
 
 ## Perform events upsert
 for e in events:
@@ -382,7 +383,6 @@ for e in events:
         "page": e["page"],
         "source": e["source"],
         # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
-
     }
     # Upsert events
     cur.execute(
