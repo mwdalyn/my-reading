@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(".env"))
 
 # Constants 
-PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$")
+PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$") 
 DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
 ## SQL automation
 BOOKS_COLUMNS = {
@@ -47,13 +47,13 @@ BOOK_SYSTEM_COLUMNS = {
     "date_ended",
     "created_on",
     "updated_on",
-} # Provided in EVERY case by the creation of a book issue
+} # Provided in EVERY case by the creation of a book issue, updated as changes are made to the issue
 BOOK_METADATA_KEYS = {
     col for col in BOOKS_COLUMNS
     if col not in BOOK_SYSTEM_COLUMNS
-} # This captures everything "else;" everything that's added into the body of the issue
+} # This captures everything "else;" everything that's added into the body of the issue not explicitly defined above
 READING_EVENTS_COLUMNS = {
-    "source_id": "TEXT PRIMARY KEY",
+    "source_id": "TEXT PRIMARY KEY", 
     "issue_id": "INTEGER",
     "date": "TEXT",
     "page": "INTEGER",
@@ -85,7 +85,7 @@ AUTO_CLOSED_LABEL = "auto-closed" # For automatically closing books marked aband
 # Functions
 ## Custom SQL generation functions
 def sql_create_table(table_name, columns):
-    '''Creating a SQL table not with a single standard SQL command constant, but with dynamic input.'''
+    '''Creating a SQL table not with a fixed command, but with dynamic input.'''
     cols = ",\n    ".join(f"{name} {ctype}" for name, ctype in columns.items())
     command = f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
@@ -102,14 +102,15 @@ def sql_upsert(table, columns, conflict_key):
     update_cols = ", ".join(
         f"{c}=excluded.{c}"
         for c in col_names
-        if c not in {conflict_key, "created_on"}
+        if c not in {conflict_key, "created_on", "updated_on"}
     )
     command = f"""
         INSERT INTO {table} ({insert_cols})
         VALUES ({placeholders})
         ON CONFLICT({conflict_key}) DO UPDATE SET
-            {update_cols}
-        """
+            {update_cols},
+            updated_on = DATE('now') 
+        """ # Updated_on is refreshed here
     return command
 
 def ensure_columns(cur, table_name, columns):
@@ -131,8 +132,7 @@ def parse_int(value):
 
 def parse_float(value):
     """Extract a float from a string; return None if invalid."""
-    # Remove any non-numeric characters except dot or minus
-    match = re.search(r"[-+]?\d*\.?\d+", value)
+    match = re.search(r"[-+]?\d*\.?\d+", value) # Remove any non-numeric characters except dot or minus
     if match:
         try:
             return float(match.group())
@@ -260,16 +260,15 @@ if issue.get("body"):
     for line in issue["body"].splitlines():
         line = line.strip()
         if not line:
-            continue # Skip empty
+            continue # Skip empty lines
         events_tmp = extract_events(
             text=line,
             fallback_date=parse_date(issue["created_at"]).date(),
             source="issue-body",
-            source_id=None  # we’ll set it next
+            source_id=None  # Set sourde_id later
         )
         for e in events_tmp:
-            # Construct deduplicated source_id
-            e["source_id"] = f"issue:{issue['id']}:{e['date'].isoformat()}:{e['page']}"
+            e["source_id"] = f"issue:{issue['id']}:{e['date'].isoformat()}:{e['page']}" # Create source_id deduped
             events.append(e)
 
 # Source: Comments (e.g. need to handle page updates and log them as daily progress; robust to multiple comments per day)
@@ -284,6 +283,25 @@ cur.execute(sql_create_table("reading_events", READING_EVENTS_COLUMNS)) # New: f
 # Add check to confirm all columns are OK
 ensure_columns(cur, "books", BOOKS_COLUMNS)
 ensure_columns(cur, "reading_events", READING_EVENTS_COLUMNS)
+
+# Ensure date_began and date_ended are reflected correctly.
+cur.execute("""
+    SELECT MIN(date) FROM reading_events WHERE issue_id=?
+""", (issue["id"],))
+earliest_event_date = cur.fetchone()[0]  # Returns a string date or None
+# Parse dates
+issue_created_date = parse_date(issue["created_at"]).date()
+earliest_event_date_obj = parse_date(earliest_event_date).date() if earliest_event_date else None
+
+# Compute date_began
+if earliest_event_date_obj:
+    date_began = min(issue_created_date, earliest_event_date_obj)
+else:
+    date_began = issue_created_date
+
+# Compute date_ended
+date_ended = parse_date(issue["closed_at"]).date() if issue.get("closed_at") else None
+
 
 # Explore comments
 for comment in comments:
@@ -345,11 +363,10 @@ book_row = {
     "author": author,
     "issue_number": issue["number"],
     "status": status,
-    "date_began": None,
-    "date_ended": None,
+    "date_began": date_began.isoformat(),
+    "date_ended": date_ended.isoformat() if date_ended else None,
     **book_metadata, # Non-system columns; book metadata columns
-    "created_on": None,
-    "updated_on": None,
+    # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
 }
 ## Upsert
 cur.execute(
@@ -364,8 +381,8 @@ for e in events:
         "date": e["date"].isoformat(),
         "page": e["page"],
         "source": e["source"],
-        "created_on": None,
-        "updated_on": None,
+        # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
+
     }
     # Upsert events
     cur.execute(
