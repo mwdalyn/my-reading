@@ -1,7 +1,7 @@
 '''Script to run with GitHub Actions in order to update database with new Issue interactions (publication, closure, comments).
 Creates the database for books, reading progress.'''
 # Imports
-import json, os, requests, re
+import json, os, requests, time
 import sqlite3
 
 from dateutil.parser import parse as parse_date
@@ -154,12 +154,11 @@ def main():
     ## Upsert
     cur.execute(
         SQL_UPSERT_BOOK, 
-        # tuple(book_row[c] for c in BOOKS_COLUMNS)) # Remove for testing 
         tuple(book_row.get(c) for c in BOOKS_COLUMNS))
 
-    ## Events table updates
-    # Create events list
-    ## Explore comments
+    # Events table updates
+    ## Create events list
+    ### Explore comments
     for comment in comments:
         for line in comment["body"].splitlines():
             line = line.strip()
@@ -175,8 +174,8 @@ def main():
                 # Check DB for existing event with same issue_id and date
                 cur.execute("""
                     SELECT source_id FROM reading_events
-                    WHERE issue_id=? AND date=?
-                """, (issue['id'], e['date']))
+                    WHERE issue_id=? AND date=? AND page=? and source=?
+                """, (issue['id'], e['date']), e['page'], e['source'])
                 existing = cur.fetchone()
                 if existing:
                     e["source_id"] = existing[0]  # Overwrite (source_id = key)
@@ -185,6 +184,7 @@ def main():
                 # Append
                 events.append(e)
     # Now you have an events list
+
 
     ## Perform events upsert
     SQL_UPSERT_EVENT = sql_upsert("reading_events", READING_EVENTS_COLUMNS, "source_id")
@@ -198,6 +198,7 @@ def main():
             "source": e["source"],
             # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
         }
+
         # Upsert events
         cur.execute(
             SQL_UPSERT_EVENT,

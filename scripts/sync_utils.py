@@ -176,7 +176,7 @@ def extract_events(text, fallback_date, source, source_id):
             "page": int(m.group(2)),
             "date": date,
             "source": source,
-            "source_id": source_id
+            "source_id": source_id,
         })
         return events
 
