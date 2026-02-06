@@ -57,6 +57,7 @@ jobs:
       - name: Sync reading data
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: .
         run: |
           python scripts/sync.py
 
