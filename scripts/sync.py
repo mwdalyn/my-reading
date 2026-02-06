@@ -175,7 +175,7 @@ def main():
                 cur.execute("""
                     SELECT source_id FROM reading_events
                     WHERE issue_id=? AND date=? AND page=? and source=?
-                """, (issue['id'], e['date']), e['page'], e['source'])
+                """, (issue['id'], e['date'], e['page'], e['source']))
                 existing = cur.fetchone()
                 if existing:
                     e["source_id"] = existing[0]  # Overwrite (source_id = key)
