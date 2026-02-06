@@ -201,7 +201,7 @@ def main():
         # Upsert events
         cur.execute(
             SQL_UPSERT_EVENT,
-            tuple(event_row[col] for col in READING_EVENTS_COLUMNS)
+            tuple(event_row.get(col) for col in READING_EVENTS_COLUMNS)
         )
 
     # End connection
