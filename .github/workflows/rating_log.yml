@@ -35,3 +35,32 @@ jobs:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           PYTHONPATH: .
         run: python scripts/ratings.py
+
+
+      - name: Commit updated DB
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          # Add the updated DB
+          git add data/reading.sqlite
+
+          # Commit only if there are changes
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Update reading DB"
+          fi
+
+          # Retry loop for push (handles race conditions)
+          for i in {1..5}; do
+            git fetch origin
+            git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
+            if git push origin HEAD; then
+              echo "Push succeeded"
+              break
+            else
+              echo "Push failed, retrying..."
+              sleep 2
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
