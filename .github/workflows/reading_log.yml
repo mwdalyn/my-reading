@@ -26,33 +26,39 @@ jobs:
         with:
           python-version: "3.9"
 
+      - name: Cache pip # Before dependencies, creates requirements.txt
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --no-cache-dir requests python-dateutil python-dotenv
+          python -m pip install --no-cache-dir -r requirements.txt
 
-      - name: Check Python and pip (debug)
-        run: |
-          which python
-          python --version
-          python -m pip list
+      # - name: Check Python and pip (debug)
+      #   run: |
+      #     which python
+      #     python --version
+      #     python -m pip list
 
-      - name: Dump event payload (local testing)
-        run: |
-          cat "$GITHUB_EVENT_PATH"
+      # - name: Dump event payload (local testing)
+      #   run: |
+      #     cat "$GITHUB_EVENT_PATH"
 
-      - name: Clear the database cache (if any)
-        run: rm -rf ~/.cache/pip
+      # - name: Clear the database cache (if any) # Was a problem
+      #   run: rm -rf ~/.cache/pip
 
-      - name: Debug Python environment
-        run: |
-          echo "Python binary:"
-          which python
-          python --version
-          echo "Installed packages:"
-          python -m pip list
-          echo "Python paths:"
-          python -c "import sys; print(sys.path)"
+      # - name: Debug Python environment
+      #   run: |
+      #     echo "Python binary:"
+      #     which python
+      #     python --version
+      #     echo "Installed packages:"
+      #     python -m pip list
+      #     echo "Python paths:"
+      #     python -c "import sys; print(sys.path)"
 
       - name: Sync reading data
         env:
