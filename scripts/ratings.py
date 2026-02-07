@@ -40,6 +40,7 @@ def main():
         return
     # Create 
     now = datetime.now().isoformat()
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True) # Add to ensure exists
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     # Ensure ratings table exists

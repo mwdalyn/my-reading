@@ -1,6 +1,7 @@
 name: Add rating if provided
 
 permissions: 
+  contents: write
   issues: read
 
 on:
