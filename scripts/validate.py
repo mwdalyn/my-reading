@@ -11,7 +11,7 @@ from functools import lru_cache
 import os, requests, sqlite3
 
 # Setup
-DB_PATH = os.path.join("data/reading.sqlite")
+DB_PATH = os.path.join("data","reading.sqlite")
 
 GITHUB_API = "https://api.github.com"
 
