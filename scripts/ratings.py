@@ -3,7 +3,7 @@ For books that are closed or status == "completed" and rating is missing, parse 
 with the substring "rating:{}" and parse rating (out of 10) from {}.'''
 # Imports
 from datetime import datetime
-from core.constants import DB_PATH 
+from core.constants import * 
 
 import os, re, json, sqlite3
 
