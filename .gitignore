@@ -5,3 +5,4 @@ rough/
 *.pdf
 *.env
 *.png
+*.sqlite-journal

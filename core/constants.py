@@ -21,6 +21,7 @@ BOOKS_COLUMNS = {
     "length": "REAL",
     "height": "REAL",
     "total_pages": "INTEGER",
+    "word_count":"REAL", # Added later; had used 'FLOAT' when creating in sql browser
     ## 
     "translator": "TEXT", # last_name, first_name
     "collection": "INTEGER", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel

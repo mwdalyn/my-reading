@@ -254,6 +254,20 @@ def dedupe_reading_events(conn):
         ) # TODO: How to enter this in the report?
     print("Duplicate reading_events removed")
 
+def calculate_word_count(conn, report):
+    # Fetch all books without a word_count yet
+    cur = conn.cursor()
+    cur.execute("SELECT issue_id, width, length, total_pages FROM books WHERE word_count IS NULL")
+    rows = cur.fetchall()
+    # Calculate and apply
+    for issue_id, width, length, total_pages in rows:
+        words_est = ((width * 0.8) / (0.153 * 0.5 * 5.5)) * ((length * 0.75) / (0.153 * 1.3)) * total_pages
+        cur.execute(
+            "UPDATE books SET word_count = ? WHERE issue_id = ?",
+            (words_est, issue_id)
+        ) # TODO: Add report
+    print("Word count estimates calculated and applied.")
+
 def main():
     conn = get_db()
     report = ValidationReport()  # Create report
@@ -261,6 +275,7 @@ def main():
 
     try:
         fix_books_dates(conn, report)
+        calculate_word_count(conn, report)
         fix_reading_events_dates(conn, report)
         ensure_page_one_events(conn, report)
         dedupe_reading_events(conn, report)
