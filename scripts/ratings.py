@@ -66,6 +66,11 @@ def main():
     """, (issue["id"], rating, now, now))
     # Commit close and report
     conn.commit()
+    # Report out tables to confirm:
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = cur.fetchall()
+    print("Tables in DB:", tables)
+    # Close
     conn.close()
     print(f"Saved rating {rating} for issue {issue['number']}.")
 

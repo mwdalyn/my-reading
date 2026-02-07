@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: pip install --upgrade pip  # No requriements needed
 
+      - name: Debug cwd & files
+        run: |
+          pwd
+          ls -R data
+
       - name: Run ratings script
         env:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
