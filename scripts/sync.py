@@ -35,8 +35,8 @@ def main():
         issue = issue_resp.json() # If not fail state, set issue as json response
         comments_resp = requests.get(issue["comments_url"], headers=headers)
         comments_resp.raise_for_status()
-        comments = comments_resp.json() # If not fail state, set comments lsit as json response from comments_url 
-    else: # Local testing 
+        comments = comments_resp.json() # If not fail state, set comments list as json response from comments_url 
+    else: # Local testing
         issue = event["issue"] 
         comments = issue.get("comments",[]) 
 
