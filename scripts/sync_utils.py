@@ -24,15 +24,6 @@ def validate_db():
     if not os.path.exists(DB_DIR):
         os.makedirs(DB_DIR)
 
-# def enforce_date_order(conn):
-#     '''Preliminary for checking database and reporting on issues with columns.'''
-#     cur = conn.cursor()
-#     cur.execute("""
-#         UPDATE books
-#         SET date_ended = date_began
-#         WHERE date_ended < date_began
-#     """)
-
 def fill_missing_created_on(conn, books_table="books", events_table="reading_events"):
     """Fill created_on if NULL for books table rows using the earliest of:
       (a) the book's date_began, or (b) the earliest associated reading_event date."""
