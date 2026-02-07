@@ -28,4 +28,5 @@ jobs:
       - name: Run ratings script
         env:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
+          PYTHONPATH: .
         run: python scripts/ratings.py
