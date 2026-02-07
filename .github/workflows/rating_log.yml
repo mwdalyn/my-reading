@@ -1,0 +1,30 @@
+name: Add rating if provided
+
+permissions: 
+  issues: read
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  add-rating:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.issue.state == 'closed' &&
+      contains(github.event.issue.labels.*.name, 'reading')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: pip install --upgrade pip  # No requriements needed
+
+      - name: Run ratings script
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: python scripts/ratings.py
