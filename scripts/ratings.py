@@ -3,11 +3,12 @@ For books that are closed or status == "completed" and rating is missing, parse 
 with the substring "rating:{}" and parse rating (out of 10) from {}.'''
 # Imports
 from datetime import datetime
+from core.constants import DB_PATH 
 
 import os, re, json, sqlite3
 
 # Constants
-DB_PATH = os.path.join("data", "reading.sqlite")
+# DB_PATH = os.path.join("data", "reading.sqlite") # Doesn't work when defined here
 
 # Functions
 def extract_rating(comment_body):
