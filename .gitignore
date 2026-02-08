@@ -6,3 +6,4 @@ rough/
 *.env
 *.png
 *.sqlite-journal
+data/library_key.txt

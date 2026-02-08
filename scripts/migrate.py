@@ -24,7 +24,6 @@ def set_schema_version(cur, version):
     """Update schema_version table."""
     cur.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
 
-
 # Initial schema
 def create_books_v1(cur):
     """Initial books table schema."""
@@ -245,7 +244,6 @@ def migration_4_add_library_books(cur):
     DROP TABLE books_old;
     COMMIT;
     """)
-
 
 ## Migration dictionary
 MIGRATIONS = {
