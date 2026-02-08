@@ -21,6 +21,9 @@ def main():
     event_path = get_event_path()
     with open(event_path) as f: # EVENT_PATH fixed to eq file path for events.json
         event = json.load(f)
+    # Dump json to offline file
+    dump_github_payload(event)
+    # Set headers for .get()
     headers = {
         "Authorization": f"Bearer {os.environ.get('GITHUB_TOKEN','')}",
         "Accept": "application/vnd.github+json"
@@ -58,7 +61,7 @@ def main():
     for comment in comments:
         if is_abandoned(comment["body"]):
             abandoned = True
-            break
+            break # TODO: Revisit this; if abandoned, shouldn't this section auto-close the issue before continuing? Or should auto-close come after processing existing comments, content?
     
     ## Log events
     # Source: Issue (body, e.g. backdating progress if Issue wasn't published on book start date)
@@ -70,12 +73,12 @@ def main():
                 continue # Skip empty lines
             events_tmp = extract_events(
                 text=line,
-                fallback_date=parse_date(issue["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"),
-                source="issue-body",
-                source_id=None  # Set sourde_id later
+                fallback_date=None, # fallback_date is unused if event is issue-body update; but if there is an issue, should throw NULL
+                source_id=None  # Set source_id later
             )
             for e in events_tmp:
-                e["source_id"] = f"issue:{issue['id']}:{e['date'].isoformat()}:{e['page']}" # Create source_id deduped
+                e_date = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
+                e["source_id"] = f"issue:{issue['id']}:{e_date}:{e['page']}" # Create source_id deduped
                 events.append(e)
 
     # Source: Comments (e.g. need to handle page updates and log them as daily progress; robust to multiple comments per day)
@@ -98,12 +101,12 @@ def main():
     """, (issue["id"],))
     earliest_event_date = cur.fetchone()[0]  # Returns a string date or None
     # Parse datetimes
-    issue_created_date = parse_date(issue["created_at"])
-    earliest_event_date_obj = parse_date(earliest_event_date) if earliest_event_date else None
+    issue_created_date = parse_date(issue["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+    earliest_event_date_obj = parse_date(earliest_event_date).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if earliest_event_date else None
     # TODO: Move this down to where date_began is created?
 
     # QA/QC: Infill missing created_on values for books table
-    fill_missing_created_on(conn)
+    fill_missing_created_on(conn) # NOTE: TODO: This could likely be removed? Function duplicated by validate.py
 
     # Determine status before upsert
     status = "abandoned" if abandoned else ("completed" if issue["state"] == "closed" else "reading")
@@ -122,7 +125,7 @@ def main():
         resp_labels = requests.post(
             labels_url,
             headers=headers,
-            json={"labels": [AUTO_CLOSED_LABEL]}
+            json={"labels": [AUTO_CLOSED_LABEL]} # TODO: Need to test; worry this would remove the 'reading' label as-is, want auto-closed to be additive 
         )
         resp_labels.raise_for_status()
         # Print
@@ -137,7 +140,7 @@ def main():
         date_began = min(issue_created_date, earliest_event_date_obj)
     else:
         date_began = issue_created_date
-    date_began = date_began.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+    date_began = date_began.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Already added this conversion above, including again for security
 
     # Set up upsert(s)
     SQL_UPSERT_BOOK = sql_upsert("books", BOOKS_COLUMNS, "issue_id")
@@ -169,34 +172,36 @@ def main():
             fallback = parse_date(comment["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
             events_tmp = extract_events(
                 text=line,
-                fallback_date=fallback,
+                fallback_date=fallback, 
                 source="comment",
                 source_id=None
             )
             for e in events_tmp:
                 # Check DB for existing event with same issue_id and date
+                e_datetime = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for querying 'date' column in db
+                e_date = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d") # Don't need timestamp for setting 'source_id'
                 cur.execute("""
                     SELECT source_id FROM reading_events
                     WHERE issue_id=? AND date=? AND page=? and source=?
-                """, (issue['id'], e['date'], e['page'], e['source']))
+                """, (issue['id'], e_datetime, e['page'], e['source'])) # Datetime goes into table as 'date'
                 existing = cur.fetchone()
                 if existing:
                     e["source_id"] = existing[0]  # Overwrite (source_id = key)
                 else:
-                    e["source_id"] = f"comment:{comment['id']}:{e['date'].isoformat()}:{e['page']}" # NOTE: May be able to enhance this for additional uniqueness?
+                    e["source_id"] = f"comment:{comment['id']}:{e_date}:{e['page']}" # NOTE: May be able to enhance this for additional uniqueness?
                 # Append
                 events.append(e)
     # Now you have an events list
-
 
     ## Perform events upsert
     SQL_UPSERT_EVENT = sql_upsert("reading_events", READING_EVENTS_COLUMNS, "source_id")
     # Iterate 
     for e in events:
+        e_datetime = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for 'date' column in db; likely redundant with above but another layer of security
         event_row = {
             "source_id": e["source_id"],
             "issue_id": issue["id"],
-            "date": e["date"],
+            "date": e_datetime,
             "page": e["page"],
             "source": e["source"],
             # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None

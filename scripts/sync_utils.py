@@ -24,6 +24,20 @@ def validate_db():
     if not os.path.exists(DB_DIR):
         os.makedirs(DB_DIR)
 
+# Stash json response content to understand issue, comment features better
+def dump_github_payload(payload, out_dir="debug"):
+    os.makedirs(out_dir, exist_ok=True)
+
+    if "issue" in payload:
+        with open(os.path.join(out_dir, "issue.json"), "w", encoding="utf-8") as f:
+            json.dump(payload["issue"], f, indent=2, ensure_ascii=False)
+
+    if "comment" in payload:
+        with open(os.path.join(out_dir, "comment.json"), "w", encoding="utf-8") as f:
+            json.dump(payload["comment"], f, indent=2, ensure_ascii=False)
+
+
+# Preparations and operations
 def fill_missing_created_on(conn, books_table="books", events_table="reading_events"):
     """Fill created_on if NULL for books table rows using the earliest of:
       (a) the book's date_began, or (b) the earliest associated reading_event date."""
@@ -156,13 +170,13 @@ def ensure_columns(cur, table_name, columns):
             cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {name} {ctype}")
 
 def extract_events(text, fallback_date, source, source_id):
-    '''Extracting reading progress events from the body of an issue (if applicable) and from comments.'''
+    '''Extracting reading progress events from the body of an issue and from comments, as applicable; handles both.'''
     events = []
     text = text.strip()
-    # Handle content in issue body MMDDYYYY : PAGE
+    # If m contains date in beginning of line like how I provide in issue-body (e.g. 'MMDDYYYY:{page}'), collect these events
     m = DATED_PAGE_RE.match(text)
     if m:
-        date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}")#.date()
+        date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}") # This doesn't need tzinfo and reformatting; my method for inputting via Issue body doesn't include timestamp, just the date
         events.append({
             "page": int(m.group(2)),
             "date": date,
@@ -171,12 +185,12 @@ def extract_events(text, fallback_date, source, source_id):
         })
         return events
 
-    # Comment only PAGE
+    # If m contains only numbers and no date format suggestion followed by ':', realize this is a comment and collect just the page + assign 'fallback date' 
     m = PAGE_ONLY_RE.match(text)
     if m:
         events.append({
             "page": int(m.group(1)),
-            "date": fallback_date,
+            "date": fallback_date, 
             "source": source,
             "source_id": source_id})
         return events
