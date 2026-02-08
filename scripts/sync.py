@@ -130,7 +130,7 @@ def main():
 
     # Determine date_began and date_ended
     date_ended = parse_date(issue["closed_at"]) if issue.get("closed_at") else None
-    date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+    date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if date_ended is not None else None
 
     # Compute date_began
     if earliest_event_date_obj:
