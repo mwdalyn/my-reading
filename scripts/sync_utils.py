@@ -142,7 +142,7 @@ def sql_upsert(table, columns, conflict_key):
         VALUES ({placeholders})
         ON CONFLICT({conflict_key}) DO UPDATE SET
             {update_cols},
-            updated_on = DATE('now') 
+            updated_on = DATETIME('now') 
         """ # Updated_on is refreshed here
     return command
 
