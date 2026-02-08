@@ -148,8 +148,8 @@ def main():
         "author": author,
         "issue_number": issue["number"],
         "status": status,
-        "date_began": date_began.isoformat(),
-        "date_ended": date_ended.isoformat() if date_ended else None,
+        "date_began": date_began if date_began else None,
+        "date_ended": date_ended if date_ended else None,
         **book_metadata, # Non-system columns; book metadata columns
         # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
     }
@@ -196,7 +196,7 @@ def main():
         event_row = {
             "source_id": e["source_id"],
             "issue_id": issue["id"],
-            "date": e["date"].isoformat(),
+            "date": e["date"],
             "page": e["page"],
             "source": e["source"],
             # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
