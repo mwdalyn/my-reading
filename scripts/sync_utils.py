@@ -162,7 +162,7 @@ def extract_events(text, fallback_date, source, source_id):
     # Handle content in issue body MMDDYYYY : PAGE
     m = DATED_PAGE_RE.match(text)
     if m:
-        date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}").date()
+        date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}")#.date()
         events.append({
             "page": int(m.group(2)),
             "date": date,

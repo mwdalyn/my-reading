@@ -97,9 +97,10 @@ def main():
         SELECT MIN(date) FROM reading_events WHERE issue_id=?
     """, (issue["id"],))
     earliest_event_date = cur.fetchone()[0]  # Returns a string date or None
-    # Parse dates
-    issue_created_date = parse_date(issue["created_at"]).date()
-    earliest_event_date_obj = parse_date(earliest_event_date).date() if earliest_event_date else None
+    # Parse datetimes
+    issue_created_date = parse_date(issue["created_at"])
+    earliest_event_date_obj = parse_date(earliest_event_date) if earliest_event_date else None
+    # TODO: Move this down to where date_began is created?
 
     # QA/QC: Infill missing created_on values for books table
     fill_missing_created_on(conn)
