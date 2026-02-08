@@ -78,7 +78,7 @@ def main():
                 source_id=None  # Set source_id later
             )
             for e in events_tmp:
-                e_date = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
+                e_date = parse_date(e['date']).strftime("%Y-%m-%d") # .replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
                 e["source_id"] = f"issue:{issue['id']}:{e_date}:{e['page']}" # Create source_id deduped
                 events.append(e)
 
@@ -103,7 +103,7 @@ def main():
     earliest_event_date = cur.fetchone()[0]  # Returns a string date or None
     # Parse datetimes
     issue_created_date = parse_date(issue["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
-    earliest_event_date_obj = parse_date(earliest_event_date).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if earliest_event_date else None
+    earliest_event_date_obj = parse_date(earliest_event_date).strftime("%Y-%m-%d %H:%M:%S") if earliest_event_date else None
     # TODO: Move this down to where date_began is created?
 
     # QA/QC: Infill missing created_on values for books table
@@ -133,8 +133,8 @@ def main():
         print(f"Issue #{issue['number']} marked as abandoned, closed, and labeled '{AUTO_CLOSED_LABEL}'.")
 
     # Determine date_began and date_ended
-    date_ended = parse_date(issue["closed_at"]) if issue.get("closed_at") else None # TODO: Should change this so that it reflects when the 'done' comment is made; easy to forget to close it simultaneously
-    date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if date_ended is not None else None
+    date_ended = parse_date(issue["closed_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if issue.get("closed_at") else None # TODO: Should change this so that it reflects when the 'done' comment is made; easy to forget to close it simultaneously
+    # date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if date_ended is not None else None
 
     # Compute date_began
     if earliest_event_date_obj:
@@ -179,8 +179,8 @@ def main():
             )
             for e in events_tmp:
                 # Check DB for existing event with same issue_id and date
-                e_datetime = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for querying 'date' column in db
-                e_date = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d") # Don't need timestamp for setting 'source_id'
+                e_datetime = parse_date(e['date']).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for querying 'date' column in db
+                e_date = parse_date(e['date']).strftime("%Y-%m-%d") # Don't need timestamp for setting 'source_id'
                 cur.execute("""
                     SELECT source_id FROM reading_events
                     WHERE issue_id=? AND date=? AND page=? and source=?
@@ -198,7 +198,7 @@ def main():
     SQL_UPSERT_EVENT = sql_upsert("reading_events", READING_EVENTS_COLUMNS, "source_id")
     # Iterate 
     for e in events:
-        e_datetime = parse_date(e['date']).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for 'date' column in db; likely redundant with above but another layer of security
+        e_datetime = parse_date(e['date']).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for 'date' column in db; likely redundant with above but another layer of security
         event_row = {
             "source_id": e["source_id"],
             "issue_id": issue["id"],
