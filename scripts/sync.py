@@ -160,7 +160,7 @@ def main():
     ## Upsert, with 'created_on' enforced as None
     cur.execute(
         SQL_UPSERT_BOOK, 
-        tuple(book_row.get(c) for c in BOOKS_COLUMNS if c != "created_on") # Unfortunate must-have; 19 bindings expected
+        tuple(book_row.get(c) for c in BOOKS_COLUMNS if c != "created_on" and c!= "updated_on") # Unfortunate must-have; 19 bindings expected
     )
 
     # Events table updates
@@ -212,7 +212,7 @@ def main():
         # event_row['created_on'] = None  # Confusing but: must do this to ensure bindings match; SQL reads this the same as though nothing was provided, so default is set/applied; created_on is handled in the upsert in a way that you don't have to worry about overwriting when using this solution
         cur.execute(
             SQL_UPSERT_EVENT,
-            tuple(event_row.get(col) for col in READING_EVENTS_COLUMNS  if col != "created_on")
+            tuple(event_row.get(c) for c in READING_EVENTS_COLUMNS  if c != "created_on" and c != "updated_on")
         )
 
     # End connection

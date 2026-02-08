@@ -145,7 +145,7 @@ def sql_upsert(table, columns, conflict_key):
     '''Upserting dynamically as well.'''
     col_names = [
         c for c in columns.keys()
-        if c != "created_on"
+        if c != "created_on" and c != "updated_on"
     ] # Exclude created_on to enforce default (e.g. 'now')
     insert_cols = ", ".join(col_names)
     placeholders = ", ".join("?" for _ in col_names)
