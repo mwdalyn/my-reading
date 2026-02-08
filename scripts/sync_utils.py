@@ -26,6 +26,7 @@ def validate_db():
 
 # Stash json response content to understand issue, comment features better
 def dump_github_payload(payload, out_dir="debug"):
+    
     os.makedirs(out_dir, exist_ok=True)
 
     if "issue" in payload:
@@ -35,7 +36,6 @@ def dump_github_payload(payload, out_dir="debug"):
     if "comment" in payload:
         with open(os.path.join(out_dir, "comment.json"), "w", encoding="utf-8") as f:
             json.dump(payload["comment"], f, indent=2, ensure_ascii=False)
-
 
 # Preparations and operations
 def fill_missing_created_on(conn, books_table="books", events_table="reading_events"):
@@ -143,13 +143,16 @@ def sql_create_table(table_name, columns):
 
 def sql_upsert(table, columns, conflict_key):
     '''Upserting dynamically as well.'''
-    col_names = list(columns.keys())
+    col_names = [
+        c for c in columns.keys()
+        if c != "created_on"
+    ]# list(columns.keys()) # NOTE: Previously this was causing issues
     insert_cols = ", ".join(col_names)
     placeholders = ", ".join("?" for _ in col_names)
     update_cols = ", ".join(
         f"{c}=excluded.{c}"
         for c in col_names
-        if c not in {conflict_key, "created_on", "updated_on"}
+        if c not in {conflict_key, "updated_on"}
     )
     command = f"""
         INSERT INTO {table} ({insert_cols})
