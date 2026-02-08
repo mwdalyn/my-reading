@@ -74,6 +74,7 @@ def main():
             events_tmp = extract_events(
                 text=line,
                 fallback_date=None, # fallback_date is unused if event is issue-body update; but if there is an issue, should throw NULL
+                source='issue-body',
                 source_id=None  # Set source_id later
             )
             for e in events_tmp:
@@ -132,7 +133,7 @@ def main():
         print(f"Issue #{issue['number']} marked as abandoned, closed, and labeled '{AUTO_CLOSED_LABEL}'.")
 
     # Determine date_began and date_ended
-    date_ended = parse_date(issue["closed_at"]) if issue.get("closed_at") else None
+    date_ended = parse_date(issue["closed_at"]) if issue.get("closed_at") else None # TODO: Should change this so that it reflects when the 'done' comment is made; easy to forget to close it simultaneously
     date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if date_ended is not None else None
 
     # Compute date_began
