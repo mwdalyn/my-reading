@@ -141,7 +141,7 @@ def main():
         date_began = min(issue_created_date, earliest_event_date_obj)
     else:
         date_began = issue_created_date
-    date_began = date_began.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Already added this conversion above, including again for security
+    # date_began = date_began.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Already added this conversion above, including again for security
 
     # Set up upsert(s)
     SQL_UPSERT_BOOK = sql_upsert("books", BOOKS_COLUMNS, "issue_id")
@@ -198,11 +198,10 @@ def main():
     SQL_UPSERT_EVENT = sql_upsert("reading_events", READING_EVENTS_COLUMNS, "source_id")
     # Iterate 
     for e in events:
-        e_datetime = parse_date(e['date']).strftime("%Y-%m-%d %H:%M:%S") # Need timestamp for 'date' column in db; likely redundant with above but another layer of security
         event_row = {
             "source_id": e["source_id"],
             "issue_id": issue["id"],
-            "date": e_datetime,
+            "date": e['date'],
             "page": e["page"],
             "source": e["source"],
             # NOTE: Removed both created_on and updated_on, this was causing problems by overwriting as None
