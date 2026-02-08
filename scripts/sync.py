@@ -54,13 +54,12 @@ def main():
 
     ## Mark book as abandoned and set flag; only care about comments
     # Check comments
+    abandoned = False # Necessary for later reference; default is False
     for comment in comments:
         if is_abandoned(comment["body"]):
             abandoned = True
             break
-        else:
-            abandoned = False
-
+    
     ## Log events
     # Source: Issue (body, e.g. backdating progress if Issue wasn't published on book start date)
     events = []
@@ -105,8 +104,11 @@ def main():
     # QA/QC: Infill missing created_on values for books table
     fill_missing_created_on(conn)
 
-    # If abandoned and still open, auto-close the GitHub Issue *and* add label
-    if abandoned and issue["state"] != "closed" and os.environ.get("GITHUB_TOKEN"):
+    # Determine status before upsert
+    status = "abandoned" if abandoned else ("completed" if issue["state"] == "closed" else "reading")
+    
+    # If abandoned and still open, auto-close the GitHub Issue and add label
+    if status == "abandoned" and issue["state"] != "closed" and os.environ.get("GITHUB_TOKEN"):
         # Close the issue
         resp = requests.patch(
             issue["url"],
@@ -124,9 +126,6 @@ def main():
         resp_labels.raise_for_status()
         # Print
         print(f"Issue #{issue['number']} marked as abandoned, closed, and labeled '{AUTO_CLOSED_LABEL}'.")
-
-    # Determine status before upsert
-    status = "abandoned" if abandoned else ("completed" if issue["state"] == "closed" else "reading")
 
     # Determine date_began and date_ended
     date_ended = parse_date(issue["closed_at"]).date() if issue.get("closed_at") else None
