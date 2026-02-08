@@ -148,7 +148,6 @@ def migration_2_datetime_defaults(cur):
     migration_2_books_datetime(cur)
     migration_2_reading_events_datetime(cur)
 
-
 ## Migration 3
 def migration_3_books_word_count_position(cur):
     """Move word_count column immediately after total_pages."""
@@ -197,11 +196,63 @@ def migration_3_books_word_count_position(cur):
     COMMIT;
     """)
 
+def migration_4_add_library_books(cur):
+    """Add column 'library' immediately after most recent metadata column, 'word_count.'"""
+    cur.execute("ALTER TABLE books ADD COLUMN library TEXT;")
+    """Move library column immediately after word_count."""
+    cur.executescript("""
+    BEGIN;
+    ALTER TABLE books RENAME TO books_old;
+    CREATE TABLE books (
+        issue_id INTEGER PRIMARY KEY,
+        title TEXT,
+        author TEXT,
+        issue_number INTEGER,
+        status TEXT,
+        date_began TEXT,
+        date_ended TEXT,
+        publisher TEXT,
+        year_published TEXT,
+        year_edition TEXT,
+        isbn TEXT,
+        width REAL,
+        length REAL,
+        height REAL,
+        total_pages INTEGER,
+        word_count REAL,
+        library TEXT,
+        translator TEXT,
+        collection INTEGER,
+        created_on TEXT DEFAULT (DATETIME('now')),
+        updated_on TEXT DEFAULT (DATETIME('now'))
+    );
+    INSERT INTO books (
+        issue_id, title, author, issue_number, status,
+        date_began, date_ended,
+        publisher, year_published, year_edition,
+        isbn, width, length, height, total_pages,
+        word_count, library, translator, collection,
+        created_on, updated_on
+    )
+    SELECT
+        issue_id, title, author, issue_number, status,
+        date_began, date_ended,
+        publisher, year_published, year_edition,
+        isbn, width, length, height, total_pages,
+        word_count, library, translator, collection,
+        created_on, updated_on
+    FROM books_old;
+    DROP TABLE books_old;
+    COMMIT;
+    """)
+
+
 ## Migration dictionary
 MIGRATIONS = {
     1: migration_1_initial_schema,
     2: migration_2_datetime_defaults,
     3: migration_3_books_word_count_position,
+    4: migration_4_add_library_books,
 }
 
 # Run
