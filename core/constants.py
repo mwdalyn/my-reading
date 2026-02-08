@@ -26,8 +26,8 @@ BOOKS_COLUMNS = {
     "translator": "TEXT", # last_name, first_name
     "collection": "INTEGER", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
     ##
-    "created_on": "TEXT DEFAULT (DATE('now'))",
-    "updated_on": "TEXT DEFAULT (DATE('now'))",
+    "created_on": "TEXT DEFAULT (DATETIME('now'))",
+    "updated_on": "TEXT DEFAULT (DATETIME('now'))",
 } # All BOOKS table columns including system columns (e.g. not about the book, about the entry of the book into the table)
 BOOK_SYSTEM_COLUMNS = {
     "issue_id",
@@ -50,8 +50,8 @@ READING_EVENTS_COLUMNS = {
     "date": "TEXT",
     "page": "INTEGER",
     "source": "TEXT",
-    "created_on": "TEXT DEFAULT (DATE('now'))",
-    "updated_on": "TEXT DEFAULT (DATE('now'))",
+    "created_on": "TEXT DEFAULT (DATETIME('now'))",
+    "updated_on": "TEXT DEFAULT (DATETIME('now'))",
 }
 
 DB_DIR = "data"
