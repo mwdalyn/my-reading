@@ -70,7 +70,7 @@ def main():
                 continue # Skip empty lines
             events_tmp = extract_events(
                 text=line,
-                fallback_date=parse_date(issue["created_at"]).date(),
+                fallback_date=parse_date(issue["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"),
                 source="issue-body",
                 source_id=None  # Set sourde_id later
             )
@@ -129,14 +129,16 @@ def main():
         print(f"Issue #{issue['number']} marked as abandoned, closed, and labeled '{AUTO_CLOSED_LABEL}'.")
 
     # Determine date_began and date_ended
-    date_ended = parse_date(issue["closed_at"]).date() if issue.get("closed_at") else None
-    
+    date_ended = parse_date(issue["closed_at"]) if issue.get("closed_at") else None
+    date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+
     # Compute date_began
     if earliest_event_date_obj:
         date_began = min(issue_created_date, earliest_event_date_obj)
     else:
         date_began = issue_created_date
-    
+    date_began = date_began.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+
     # Set up upsert(s)
     SQL_UPSERT_BOOK = sql_upsert("books", BOOKS_COLUMNS, "issue_id")
     ## Define and perform book upsert
@@ -164,9 +166,10 @@ def main():
             line = line.strip()
             if not line:
                 continue # Skip empty
+            fallback = parse_date(comment["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
             events_tmp = extract_events(
                 text=line,
-                fallback_date=parse_date(comment["created_at"]).date(),
+                fallback_date=fallback,
                 source="comment",
                 source_id=None
             )
