@@ -96,7 +96,7 @@ def get_issue_metadata(issue_number):
     }
 
 ## Fix table 'books'
-def fix_books_dates(conn, report):
+def fix_books_dates(conn, report=None):
     cur = conn.cursor()
     books = cur.execute("SELECT * FROM books").fetchall()
 
@@ -107,26 +107,28 @@ def fix_books_dates(conn, report):
         # date_began
         if book["date_began"] is None:
             updates["date_began"] = issue_meta["created_at"]
-            report.record(
-                rule="Books: date_began backfill",
-                table="books",
-                identifier=f"issue_number={book['issue_number']}",
-                column="date_began",
-                old=None,
-                new=issue_meta["created_at"],
-            )
+            if report:
+                report.record(
+                    rule="Books: date_began backfill",
+                    table="books",
+                    identifier=f"issue_number={book['issue_number']}",
+                    column="date_began",
+                    old=None,
+                    new=issue_meta["created_at"],
+                )
 
         # date_ended
         if book["date_ended"] is None and book["status"] == "completed":
             updates["date_ended"] = issue_meta["closed_at"]
-            report.record(
-                rule="Books: date_ended backfill",
-                table="books",
-                identifier=f"issue_number={book['issue_number']}",
-                column="date_began",
-                old=None,
-                new=issue_meta["closed_at"],
-            )
+            if report:
+                report.record(
+                    rule="Books: date_ended backfill",
+                    table="books",
+                    identifier=f"issue_number={book['issue_number']}",
+                    column="date_began",
+                    old=None,
+                    new=issue_meta["closed_at"],
+                )
 
         # created_on
         if book["created_on"] is None and (book["date_began"] or updates.get("date_began")):
@@ -162,7 +164,7 @@ def fix_books_dates(conn, report):
 
 
 ## Fix table 'reading_events'
-def fix_reading_events_dates(conn):
+def fix_reading_events_dates(conn, report=None):
     cur = conn.cursor()
     today = date.today().isoformat()
     cur.execute(
@@ -183,7 +185,7 @@ def fix_reading_events_dates(conn):
     print("Fill NULL updated_ and created_on entries with date where missing.")
 
 
-def ensure_page_one_events(conn):
+def ensure_page_one_events(conn, report=None):
     cur = conn.cursor()
     issues = cur.execute(
         "SELECT DISTINCT issue_id FROM reading_events"
@@ -230,7 +232,7 @@ def ensure_page_one_events(conn):
             )
     print("Ensured all issues have page = 1 reading_events entry")
 
-def dedupe_reading_events(conn):
+def dedupe_reading_events(conn, report=None):
     cur = conn.cursor()
     duplicates = cur.execute(
         """
@@ -254,7 +256,7 @@ def dedupe_reading_events(conn):
         ) # TODO: How to enter this in the report?
     print("Duplicate reading_events removed")
 
-def calculate_word_count(conn, report):
+def calculate_word_count(conn, report=None):
     # Fetch all books without a word_count yet
     cur = conn.cursor()
     cur.execute("SELECT issue_id, width, length, total_pages FROM books WHERE word_count IS NULL")
@@ -270,22 +272,22 @@ def calculate_word_count(conn, report):
 
 def main():
     conn = get_db()
-    report = ValidationReport()  # Create report
+    val_report = ValidationReport()  # Create report
     report_path = os.path.join("data", "validation_report.md")
 
     try:
-        fix_books_dates(conn, report)
-        calculate_word_count(conn, report)
-        fix_reading_events_dates(conn, report)
-        ensure_page_one_events(conn, report)
-        dedupe_reading_events(conn, report)
+        fix_books_dates(conn, report=val_report)
+        calculate_word_count(conn)
+        fix_reading_events_dates(conn)
+        ensure_page_one_events(conn)
+        dedupe_reading_events(conn)
 
         conn.commit() # Commit; report has been written if this is all successful
         print("Database validation complete")
 
     except Exception as e:
         # Log a failure into the report
-        report.record(
+        val_report.record(
             rule="FATAL",
             table="N/A",
             identifier="validate.py",
@@ -299,7 +301,7 @@ def main():
         # Write the report regardless of content
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
         with open(report_path, "w", encoding="utf-8") as f:
-            f.write(report.to_markdown())
+            f.write(val_report.to_markdown())
         # Close and show success
         conn.close()
         print(f"Validation report written to {report_path}")
