@@ -36,7 +36,6 @@ jobs:
           PYTHONPATH: .
         run: python scripts/ratings.py
 
-
       - name: Commit updated DB
         run: |
           git config --global user.name "github-actions"
