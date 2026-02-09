@@ -102,7 +102,7 @@ def fix_books_dates(conn, report):
 
     for book in books:
         updates = {}
-        issue_meta = get_issue_metadata(book["issue_id"])
+        issue_meta = get_issue_metadata(book["issue_number"])
 
         # date_began
         if book["date_began"] is None:
@@ -110,7 +110,7 @@ def fix_books_dates(conn, report):
             report.record(
                 rule="Books: date_began backfill",
                 table="books",
-                identifier=f"issue_id={book['issue_id']}",
+                identifier=f"issue_number={book['issue_number']}",
                 column="date_began",
                 old=None,
                 new=issue_meta["created_at"],
@@ -122,7 +122,7 @@ def fix_books_dates(conn, report):
             report.record(
                 rule="Books: date_ended backfill",
                 table="books",
-                identifier=f"issue_id={book['issue_id']}",
+                identifier=f"issue_number={book['issue_number']}",
                 column="date_began",
                 old=None,
                 new=issue_meta["closed_at"],
