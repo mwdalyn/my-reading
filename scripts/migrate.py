@@ -3,7 +3,7 @@
 # Imports
 import os, sqlite3
 
-DB_PATH = os.path.join("data", "reading.sqlite")
+from core.constants import * 
 
 # Schema versioning
 def ensure_schema_version(cur):

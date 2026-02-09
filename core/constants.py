@@ -2,6 +2,11 @@ import os, re
 
 # Constants
 GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH"
+GITHUB_API = "https://api.github.com" # validate.py
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # validate.py
+GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY") # validate.py
+
+# Regex for sync.py
 PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$") 
 DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
 ## SQL automation
@@ -61,4 +66,8 @@ DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
 # Enable abandonment
 ABANDON_KEYWORDS = {"abandon","give_up"}
 AUTO_CLOSED_LABEL = "auto-closed" # For automatically closing books marked abandoned (and not going recursive)
+
+# Set calendar table start, end
+CALENDAR_START = "2026-01-01"
+CALENDAR_END = "2026-12-31"
 

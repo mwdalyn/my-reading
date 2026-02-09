@@ -11,14 +11,9 @@ from dateutil.parser import parse as parse_date
 
 import os, requests, sqlite3
 
+from core.constants import * 
+
 # Setup
-DB_PATH = os.path.join("data","reading.sqlite")
-
-GITHUB_API = "https://api.github.com"
-
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY")
-
 if not GITHUB_TOKEN:
     raise RuntimeError("GITHUB_TOKEN not set")
 
