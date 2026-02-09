@@ -7,6 +7,7 @@ from datetime import date
 from datetime import datetime
 from collections import defaultdict
 from functools import lru_cache
+from dateutil.parser import parse as parse_date
 
 import os, requests, sqlite3
 
@@ -154,6 +155,7 @@ def fix_books_dates(conn, report=None):
                 if event:
                     updates["updated_on"] = event["date"]
                     # TODO: Add report
+        
         if updates:
             set_clause = ", ".join(f"{k} = ?" for k in updates)
             cur.execute(
@@ -162,18 +164,36 @@ def fix_books_dates(conn, report=None):
             )
     print("Validated books table")
 
+def calculate_word_count(conn, report=None):
+    # Fetch all books without a word_count yet
+    cur = conn.cursor()
+    cur.execute("SELECT issue_id, width, length, total_pages FROM books WHERE word_count IS NULL")
+    rows = cur.fetchall()
+    # Calculate and apply
+    for issue_id, width, length, total_pages in rows:
+        words_est = ((width * 0.8) / (0.153 * 0.5 * 5.5)) * ((length * 0.75) / (0.153 * 1.3)) * total_pages
+        cur.execute(
+            "UPDATE books SET word_count = ? WHERE issue_id = ?",
+            (round(words_est,0), issue_id)
+        ) # TODO: Add report
+    print("Word count estimates calculated and applied.")
 
 ## Fix table 'reading_events'
 def fix_reading_events_dates(conn, report=None):
     cur = conn.cursor()
     today = date.today().isoformat()
-    cur.execute(
-        """
+    valid_tables = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
+    }
+    # TODO: Try to enforce reacing_events datetime typing here
+    cur.execute("""
         UPDATE reading_events
         SET created_on = date
         WHERE created_on IS NULL
-        """
-    )
+        """)
     cur.execute(
         """
         UPDATE reading_events
@@ -184,7 +204,6 @@ def fix_reading_events_dates(conn, report=None):
     )
     print("Fill NULL updated_ and created_on entries with date where missing.")
 
-
 def ensure_page_one_events(conn, report=None):
     cur = conn.cursor()
     issues = cur.execute(
@@ -193,7 +212,6 @@ def ensure_page_one_events(conn, report=None):
 
     for row in issues:
         issue_id = row["issue_id"]
-
         has_page_one = cur.execute(
             """
             SELECT 1 FROM reading_events
@@ -219,10 +237,11 @@ def ensure_page_one_events(conn, report=None):
         if earliest: # Create earliest entry, set page = 1
             cur.execute(
                 """
-                INSERT INTO reading_events (issue_id, date, page, source, created_on, updated_on)
-                VALUES (?, ?, 1, ?, ?, ?)
+                INSERT INTO reading_events (source_id, issue_id, date, page, source, created_on, updated_on)
+                VALUES (?, ?, ?, 1, ?, ?, ?)
                 """,
                 (
+                    ":".join(earliest["source"],str(issue_id),parse_date(earliest['date']).strftime("%Y-%m-%d") ,str(1)), # source_id convention
                     issue_id,
                     earliest["date"],
                     earliest["source"],
@@ -231,6 +250,29 @@ def ensure_page_one_events(conn, report=None):
                 ),
             )
     print("Ensured all issues have page = 1 reading_events entry")
+
+def ensure_source_id_reading_events(conn, report=None): # NOTE: This may not be needed; edge case arose 
+    cur = conn.cursor()
+    rows = cur.execute(
+        "SELECT * FROM reading_events WHERE source_id = NULL"
+    ).fetchall()
+
+    for row in rows:
+        cur.execute(
+            """
+            INSERT INTO reading_events (source_id, issue_id, date, page, source, created_on, updated_on)
+            VALUES (?, ?, ?, 1, ?, ?, ?)
+            """,
+            (
+                ":".join(row['source'],row['issue_id'],parse_date(row['date']).strftime("%Y-%m-%d"),str(row['page'])), # source_id convention
+                row['issue_id'],
+                row['date'],
+                row['source'],
+                row['created_on'],
+                row['updated_on'],
+            ),
+        )
+    print("Ensured all reading_events have proper source_id.")
 
 def dedupe_reading_events(conn, report=None):
     cur = conn.cursor()
@@ -256,19 +298,6 @@ def dedupe_reading_events(conn, report=None):
         ) # TODO: How to enter this in the report?
     print("Duplicate reading_events removed")
 
-def calculate_word_count(conn, report=None):
-    # Fetch all books without a word_count yet
-    cur = conn.cursor()
-    cur.execute("SELECT issue_id, width, length, total_pages FROM books WHERE word_count IS NULL")
-    rows = cur.fetchall()
-    # Calculate and apply
-    for issue_id, width, length, total_pages in rows:
-        words_est = ((width * 0.8) / (0.153 * 0.5 * 5.5)) * ((length * 0.75) / (0.153 * 1.3)) * total_pages
-        cur.execute(
-            "UPDATE books SET word_count = ? WHERE issue_id = ?",
-            (words_est, issue_id)
-        ) # TODO: Add report
-    print("Word count estimates calculated and applied.")
 
 def main():
     conn = get_db()
@@ -280,6 +309,7 @@ def main():
         calculate_word_count(conn)
         fix_reading_events_dates(conn)
         ensure_page_one_events(conn)
+        ensure_source_id_reading_events(conn)
         dedupe_reading_events(conn)
 
         conn.commit() # Commit; report has been written if this is all successful
