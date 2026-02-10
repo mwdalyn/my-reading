@@ -71,3 +71,7 @@ AUTO_CLOSED_LABEL = "auto-closed" # For automatically closing books marked aband
 CALENDAR_START = "2026-01-01"
 CALENDAR_END = "2026-12-31"
 
+# Visuals
+MY_COLOR="#008ddf"
+GOAL_COLOR="#4a4a4a"
+ABSENT_COLOR = "#eeeeee"

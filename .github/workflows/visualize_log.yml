@@ -1,0 +1,77 @@
+name: Update reading views and visualize
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  validate-db:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir -r requirements.txt
+          
+      - name: Run view creation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PYTHONPATH: .
+        run: |
+          python scripts/create_reading_views.py
+
+      # - name: Upload data table csvs # TODO: Optional, add this to work
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: progress-report
+      #     path: data/progress_report.csv
+
+      - name: Create visuals
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PYTHONPATH: .
+        run: |
+          python scripts/create_visuals.py
+
+      - name: Commit updated DB
+        run: |
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+
+            # Add the updated DB
+            git add data/reading.sqlite
+
+            # Commit only if there are changes
+            if ! git diff-index --quiet HEAD --; then
+              git commit -m "Update reading DB"
+            fi
+
+            # Retry loop for push (handles race conditions)
+            for i in {1..5}; do
+              git fetch origin
+              git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
+              if git push origin HEAD; then
+                echo "Push succeeded"
+                break
+              else
+                echo "Push failed, retrying..."
+                sleep 2
+              fi
+            done
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
