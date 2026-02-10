@@ -48,7 +48,7 @@ jobs:
         run: |
           python scripts/create_visuals.py
 
-      - name: Commit updated DB
+      - name: Commit updated DB and visuals
         run: |
             git config --global user.name "github-actions"
             git config --global user.email "github-actions@github.com"
@@ -56,9 +56,12 @@ jobs:
             # Add the updated DB
             git add data/reading.sqlite
 
+            # Add any png or svg visual files
+            git add data/*.png data/*.svg
+
             # Commit only if there are changes
             if ! git diff-index --quiet HEAD --; then
-              git commit -m "Update reading DB"
+              git commit -m "Update reading DB with views"
             fi
 
             # Retry loop for push (handles race conditions)

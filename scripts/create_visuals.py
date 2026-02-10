@@ -1,19 +1,21 @@
-import sqlite3
+import sqlite3, sys
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
-from datetime import datetime
+# from datetime import datetime
 
-# from core.constants import * 
-
-# Local testing
-import sys
+###################
+# Necessary for chart/graphic handling (and local testing)
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+VIS_DIR = ROOT / "visuals"
+VIS_DIR.mkdir(exist_ok=True)
+####################
 
 from core.constants import *
 
@@ -30,84 +32,90 @@ def load_ts_reading(db_path):
     conn.close()
     return df
 
+
+def output_fig(fig_obj, fig_label): # TODO: Can this be more robust?
+    out_path = (VIS_DIR / fig_label).with_suffix("")
+    fig_obj.savefig(f"{out_path}.svg", bbox_inches="tight")
+    fig_obj.savefig(f"{out_path}.png", dpi=300, bbox_inches="tight")
+    
 ## Hair chart
-def create_hair_chart_discrete(df_2026):
+def create_bar_chart_discrete(df, chart_name='bar_daily_2026'):
     # Set up 
-    fig, ax = plt.subplots(figsize=(20, 5))
+    fig, ax = plt.subplots(figsize=(17.5, 5))
     bar_width = 0.4
     ax.bar(
-        df_2026["date_est"] - pd.Timedelta(hours=12),
-        df_2026["my_goal"],
+        df["date_est"] - pd.Timedelta(hours=12),
+        df["my_goal"],
         width=bar_width,
         color=GOAL_COLOR,
         edgecolor=GOAL_COLOR,
         alpha=0.6,
-        label="My goal"
+        label="Goal"
     )
-
     ax.bar(
-        df_2026["date_est"] + pd.Timedelta(hours=12),
-        df_2026["my_reading"],
+        df["date_est"] + pd.Timedelta(hours=12),
+        df["my_reading"],
         width=bar_width,
         color=MY_COLOR,
         edgecolor=MY_COLOR,
-        label="My reading"
+        label="Progress"
     )
-
-    ax.set_ylim(0, 300)
-    ax.set_ylabel("Pages read")
-
+    # Axes
+    ax.set_ylim(0, 300) # Approx. maximum pages per day = 300
+    ax.set_ylabel("Pages Read")
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
-
     ax.set_xlim(
         pd.Timestamp("2026-01-01"),
         pd.Timestamp("2026-12-31")
     )
-
+    # Legend
     ax.legend(frameon=False)
-    ax.set_title("Daily Reading vs Goal (2026)")
+    ax.set_title("Daily Reading vs. Goal (2026)")
+    # Create layout
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
 
-    plt.tight_layout()
-    plt.show()
-
-def create_hair_chart_cumulative(df_2026):
+def create_bar_chart_cumulative(df, chart_name='bar_cumulative_2026'):
     # Set up
-    fig, ax = plt.subplots(figsize=(20, 5))
+    fig, ax = plt.subplots(figsize=(17.5, 5))
     ax.plot(
-        df_2026["date_est"],
-        df_2026["my_goal_cumulative"],
+        df["date_est"],
+        df["my_goal_cumulative"],
         color=GOAL_COLOR,
         alpha=0.5,
         linewidth=2,
         label="Goal (cumulative)"
     )
     ax.plot(
-        df_2026["date_est"],
-        df_2026["my_reading_cumulative"],
+        df["date_est"],
+        df["my_reading_cumulative"],
         color=MY_COLOR,
         linewidth=2,
         label="Reading (cumulative)"
     )
-
-    ax.set_ylabel("Total pages")
+    # Axes
+    ax.set_ylabel("Total Pages Read")
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
-
     ax.set_xlim(
         pd.Timestamp("2026-01-01"),
         pd.Timestamp("2026-12-31")
     )
-
+    # Legend
     ax.legend(frameon=False)
-    ax.set_title("Cumulative Reading vs Goal (2026)")
+    ax.set_title("Cumulative Reading vs. Goal (2026)")
+    # Layout
+    fig.tight_layout()
+    if chart_name: 
+        output_fig(fig, chart_name)
+    return fig 
 
-    plt.tight_layout()
-    plt.show()
-
-def create_pie_chart_pages(df_2026, today):
+def create_pie_chart_pages(df, to_date, chart_name='pie_dow_pages_2026'):
     dow_pages = (
-    df_2026[df_2026["date_est"] < today]
+    df[df["date_est"] < to_date]
     .assign(dow=lambda d: d["date_est"].dt.day_name())
     .groupby("dow")["my_reading"]
     .sum()
@@ -115,10 +123,9 @@ def create_pie_chart_pages(df_2026, today):
         ["Monday", "Tuesday", "Wednesday", "Thursday",
          "Friday", "Saturday", "Sunday"]
             )
-    )
-
+    ).fillna(0)
+    # Set fig, ax
     fig, ax = plt.subplots(figsize=(6, 6))
-
     ax.pie(
         dow_pages,
         labels=dow_pages.index,
@@ -127,11 +134,14 @@ def create_pie_chart_pages(df_2026, today):
     )
     # Plot
     ax.set_title("Share of Pages Read by Day of Week (2026 YTD)")
-    plt.show()
+    # Output
+    if chart_name: 
+        output_fig(fig, chart_name)
+    return fig 
 
-def create_pie_chart_dowfreq(df_2026, today):
+def create_pie_chart_dowfreq(df, to_date, chart_name='pie_dow_freq_2026'):
     dow_days = (
-    df_2026[df_2026["date_est"] < today]
+    df[df["date_est"] < to_date]
     .assign(
         dow=lambda d: d["date_est"].dt.day_name(),
         read_day=lambda d: d["my_reading"] > 0
@@ -143,10 +153,9 @@ def create_pie_chart_dowfreq(df_2026, today):
         ["Monday", "Tuesday", "Wednesday", "Thursday",
          "Friday", "Saturday", "Sunday"]
         )
-    )
+    ).fillna(0)
 
     fig, ax = plt.subplots(figsize=(6, 6))
-
     ax.pie(
         dow_days,
         labels=dow_days.index,
@@ -155,36 +164,39 @@ def create_pie_chart_dowfreq(df_2026, today):
     )
     # Plot
     ax.set_title("Which Days You Read (Non-Zero Days, 2026 YTD)")
-    plt.show()
+    # Output
+    if chart_name: 
+        output_fig(fig, chart_name)
+    return fig 
 
-def create_heatmap_streak(df_2026, today):
+def create_heatmap_streak(df, to_date, chart_name='heatmap_ytd_2026'):
     # Calculate streak/day
-    df_2026["read_flag"] = df_2026["my_reading"] > 0
-    df_2026["streak"] = 0
+    df["read_flag"] = df["my_reading"] > 0
+    df["streak"] = 0
     current_streak = 0
-    for i, row in df_2026.iterrows():
+    for i, row in df.iterrows(): # TODO: Not scalable beyond 1 year most likely...? Could lag. Is there a better way? 
         if row["read_flag"]:
             current_streak += 1
         else:
             current_streak = 0
-        df_2026.at[i, "streak"] = current_streak
+        df.at[i, "streak"] = current_streak
     # Build grid
-    df_2026["week"] = df_2026["date_est"].dt.isocalendar().week
-    df_2026["dow"] = df_2026["date_est"].dt.weekday  # Mon=0
-    pivot = df_2026.pivot(
+    df["week"] = df["date_est"].dt.isocalendar().week
+    df["dow"] = df["date_est"].dt.weekday  # Monday = 0 index
+    pivot = df.pivot(
         index="dow",
         columns="week",
         values="streak"
     )
     # Mask future dates
-    future_mask = df_2026["date_est"] > today
-    for _, r in df_2026[future_mask].iterrows():
+    future_mask = df["date_est"] > to_date
+    for _, r in df[future_mask].iterrows():
         pivot.loc[r["dow"], r["week"]] = -1
     # Custom colormap
     cmap = LinearSegmentedColormap.from_list(
-    "streaks",
-    [ABSENT_COLOR, MY_COLOR]
-    )
+        "streaks",
+        [ABSENT_COLOR, MY_COLOR]
+        )
     # Plot
     fig, ax = plt.subplots(figsize=(18, 4))
     sns.heatmap(
@@ -195,20 +207,21 @@ def create_heatmap_streak(df_2026, today):
         linecolor=ABSENT_COLOR,
         ax=ax
     )
-
+    # Set up axes and labels
     ax.set_yticks(range(7))
     ax.set_yticklabels(
         ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
         rotation=0
     )
-
     ax.set_title("Reading Streaks — 2026")
     ax.set_xlabel("Week of Year")
     ax.set_ylabel("")
-
-    plt.tight_layout()
-    plt.show()
-
+    # Layout
+    fig.tight_layout()
+    # Output
+    if chart_name: 
+        output_fig(fig, chart_name)
+    return fig 
 
 def main():
     # Load theme
@@ -219,14 +232,16 @@ def main():
     df = df.sort_values("date_est")
     df["date_est"] = pd.to_datetime(df["date_est"])
     df_2026 = df[df["date_est"].dt.year == 2026].copy()
-    today = pd.Timestamp.today().normalize()
+    today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
     # Run plotting functions
     print("begin creating graphics")
-    create_hair_chart_discrete(df_2026)
-    create_hair_chart_cumulative(df_2026)
-    create_pie_chart_pages(df_2026, today)
-    create_pie_chart_dowfreq(df_2026, today)
-    create_heatmap_streak(df_2026, today)
-
+    f1 = create_bar_chart_discrete(df_2026)
+    f2 = create_bar_chart_cumulative(df_2026)
+    f3 = create_pie_chart_pages(df_2026, today)
+    f4 = create_pie_chart_dowfreq(df_2026, today)
+    f5 = create_heatmap_streak(df_2026, today)
+    # TODO: Create GridSpec dashboard with these figs
+    plt.close('all')
+    
 if __name__ == "__main__":
     main()
