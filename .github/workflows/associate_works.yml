@@ -1,0 +1,13 @@
+name: Create associations between works where noted
+
+permissions: 
+  contents: write
+  issues: read
+
+on:
+  # issues:
+  #   types: [opened, edited, closed]
+  # issue_comment:
+  #   types: [created, edited]
+  workflow_dispatch:
+
