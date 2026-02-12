@@ -353,9 +353,9 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     # Legend: Hide legend automatically if too many books AND set limitation on label length 
     ## Truncate only
     handles, labels = ax.get_legend_handles_labels()
-    labels = [truncate_label(l) for l in labels]
+    labels = [truncate_label(l.replace("The ","")) for l in labels] # TODO: Also remove "The " from the beginning to save space before trunc
     # Set up legend
-    if len(df) <= 10:
+    if len(df) <= 10: 
         ax.legend(
             handles, # New
             labels, # New
