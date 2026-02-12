@@ -1,11 +1,13 @@
 # Imports
-from datetime import datetime
-from core.constants import DB_PATH 
-
 import os, re, json, sqlite3
 
+from datetime import datetime
+
+from core.constants import DB_PATH 
+
 # Constants
-DB_PATH = os.path.join(os.getcwd(), DB_PATH) #
+DB_PATH = os.path.join(os.getcwd(), DB_PATH) # Similar in function to Path usage in other files; uncertain about which I prefer
+# TODO: Test and see if I can replace Path usage elsewhere with this; does it work locally?
 
 # Main
 def main():
