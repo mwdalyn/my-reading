@@ -254,12 +254,12 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql(
         """
-        SELECT title, height
+        SELECT title, height, length
         FROM books
         WHERE status = 'completed'
           AND height IS NOT NULL
         ORDER BY created_on ASC
-        """, # First-read books go at bottom
+        """, # First-read books go at bottom; length = length at spine
         conn,
     )
     conn.close()
@@ -267,18 +267,19 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     if df.empty:
         raise ValueError("No completed books with height found.")
     # Set reference height (fixed)
-    reference_height = MY_HEIGHT
+    reference_height, reference_width = MY_HEIGHT, MY_HEAD_HEIGHT*1.25
     # Set up figure
     fig, ax = plt.subplots(figsize=(8, 10))  # portrait orientation
     # Basic layout
-    x_ref, x_stack = 0.2, 1
+    x_ref, x_stack = 0.3, 1
+    width_scalar = 0.3 # Desired "standard width" in graphical terms
     # Reference bar
     if reference_simple:
         ax.bar(
             x_ref,
             reference_height,
-            width=0.4,
-            color="#444444",
+            width=width_scalar,
+            color="#121111",
             label="My Height"
         )
     else:
@@ -294,10 +295,10 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
                 x_ref,
                 h,
                 bottom=bottom,
-                width=0.4,
+                width=width_scalar,
                 color=color,
                 edgecolor="none",
-                label=part # To ignore, set = None or possibly "none"
+                # label=part # To ignore, set = None or possibly "none"
             )
             bottom += h
     if overlay_image: 
@@ -321,11 +322,12 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     # Generate distinct colors
     colors = cm.tab20(np.linspace(0, 1, len(df))) # Color map for various books
     for (idx, row), color in zip(df.iterrows(), colors):
+        # TODO: Add width to query; get book widths; already centered so nothing else changes
         ax.bar(
             x_stack,
             row["height"],
             bottom=bottom,
-            width=0.4,
+            width=row["length"]*(width_scalar/reference_width), # Add "width" to input data and set width=row["width"] to get the correct width data # TODO
             color=color,
             edgecolor="none",
             label=row["title"]
