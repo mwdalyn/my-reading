@@ -350,26 +350,23 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     # Optional: Clean
     ax.spines["top"].set_alpha(0.3)
     ax.spines["right"].set_alpha(0.3) # formerly: .set_visible(False)
-    # Legend: Hide legend automatically if too many books AND set limitation on 
-    # Example
+    # Legend: Hide legend automatically if too many books AND set limitation on label length 
+    ## Truncate only
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, [wrap_label(l, width=15) for l in labels], loc="upper right")
-
-    # Example: apply to your book titles
-    ax.legend(labels=[truncate_label(lbl) for lbl in ax.get_legend_handles_labels()[1]])
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, [truncate_label(l) for l in labels], loc="upper right")
-
+    labels = [truncate_label(l) for l in labels]
+    # Set up legend
     if len(df) <= 10:
         ax.legend(
+            handles, # New
+            labels, # New
             # bbox_to_anchor=(1.05, 1), # Want it to float, so hide
             loc="upper right",
             frameon=False,
             fontsize=14,
             facecolor="white",
-            edgecolor="none",
             framealpha=0.95
         )
+        # lgnd.get_frame().set_linewidth(0) # If you want to remove border, set ax.legend() = leg and apply this
     # Set title
     ax.set_title("Total Height of Completed Books vs. Reference", fontsize=18)
     # Layout
