@@ -3,19 +3,25 @@ import sqlite3, sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib.dates as mdates
-from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.dates as mdates # Special dates
+from matplotlib.colors import LinearSegmentedColormap # Special colormap
+import matplotlib.cm as cm # Color mapping generally
+import matplotlib.image as mpimg # Overlaying images on plots
+import numpy as np
 
-from core.constants import *
 ###################
 # Necessary for chart/graphic handling (and local testing) # TODO: Test this for removal; will os be able to handle?
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+from core.constants import *
+
 VIS_DIR = ROOT / "visuals"
 VIS_DIR.mkdir(exist_ok=True)
 ####################
+
 
 # Functions
 ## Universal load
@@ -30,7 +36,6 @@ def load_ts_reading(db_path):
     conn.close()
     return df
 
-
 def output_fig(fig_obj, fig_label): # TODO: Can this be more robust?
     out_path = (VIS_DIR / fig_label).with_suffix("")
     fig_obj.savefig(f"{out_path}.svg", bbox_inches="tight")
@@ -40,18 +45,17 @@ def output_fig(fig_obj, fig_label): # TODO: Can this be more robust?
 def create_bar_chart_discrete(df, chart_name='bar_daily_2026'):
     # Set up 
     fig, ax = plt.subplots(figsize=(17.5, 5))
-    bar_width = 0.4
-    ax.bar(
-        df["date_est"] - pd.Timedelta(hours=12),
+    bar_width = 0.4 
+    ax.plot( 
+        df["date_est"], # - pd.Timedelta(hours=12), # 12 hour offset for the sake of spacing
         df["my_goal"],
-        width=bar_width,
         color=GOAL_COLOR,
-        edgecolor=GOAL_COLOR,
         alpha=0.6,
+        linewidth=2,
         label="Goal"
     )
     ax.bar(
-        df["date_est"] + pd.Timedelta(hours=12),
+        df["date_est"] + pd.Timedelta(hours=12), # 12 hour offset for the sake of spacing
         df["my_reading"],
         width=bar_width,
         color=MY_COLOR,
@@ -65,7 +69,7 @@ def create_bar_chart_discrete(df, chart_name='bar_daily_2026'):
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
     ax.set_xlim(
         pd.Timestamp("2026-01-01"),
-        pd.Timestamp("2026-12-31")
+        pd.Timestamp("2026-12-31") # TODO: Consider making this dynamic? 
     )
     # Legend
     ax.legend(frameon=False)
@@ -85,14 +89,32 @@ def create_bar_chart_cumulative(df, chart_name='bar_cumulative_2026'):
         color=GOAL_COLOR,
         alpha=0.5,
         linewidth=2,
-        label="Goal (cumulative)"
+        label="Goal (c_)"
+    )
+    # Lower tolerance band (75% → 100%)
+    ax.fill_between(
+        df["date_est"],
+        df["my_goal_cumulative"] * 0.75,
+        df["my_goal_cumulative"],
+        color=GOAL_COLOR,
+        alpha=0.15,
+        label="Good"
+    )
+    # Upper tolerance band (100% → 120%)
+    ax.fill_between(
+        df["date_est"],
+        df["my_goal_cumulative"],
+        df["my_goal_cumulative"] * 1.2,
+        color=GOAL_COLOR,
+        alpha=0.08,
+        label="Great"
     )
     ax.plot(
         df["date_est"],
         df["my_reading_cumulative"],
         color=MY_COLOR,
         linewidth=2,
-        label="Reading (cumulative)"
+        label="Reading (c_)"
     )
     # Axes
     ax.set_ylabel("Total Pages Read")
@@ -113,21 +135,24 @@ def create_bar_chart_cumulative(df, chart_name='bar_cumulative_2026'):
 
 def create_pie_chart_pages(df, to_date, chart_name='pie_dow_pages_2026'):
     dow_pages = (
-    df[df["date_est"] < to_date]
-    .assign(dow=lambda d: d["date_est"].dt.day_name())
-    .groupby("dow")["my_reading"]
-    .sum()
-    .reindex(
-        ["Monday", "Tuesday", "Wednesday", "Thursday",
-         "Friday", "Saturday", "Sunday"]
-            )
+        df[df["date_est"] < to_date]
+        .assign(dow=lambda d: d["date_est"].dt.day_name())
+        .groupby("dow")["my_reading"]
+        .sum()
+        .reindex(
+            ["Monday", "Tuesday", "Wednesday", "Thursday",
+            "Friday", "Saturday", "Sunday"]
+                )
     ).fillna(0)
+    # Set colors
+    dow_colors = [DOW_COLORS[d] for d in dow_pages.index]
     # Set fig, ax
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.pie(
         dow_pages,
         labels=dow_pages.index,
         autopct="%1.1f%%",
+        colors=dow_colors,
         startangle=90
     )
     # Plot
@@ -152,12 +177,15 @@ def create_pie_chart_dowfreq(df, to_date, chart_name='pie_dow_freq_2026'):
          "Friday", "Saturday", "Sunday"]
         )
     ).fillna(0)
-
+    # Set colors
+    dow_colors = [DOW_COLORS[d] for d in dow_days.index]
+    # Set figure, axes
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.pie(
         dow_days,
         labels=dow_days.index,
         autopct="%1.1f%%",
+        colors=dow_colors,
         startangle=90
     )
     # Plot
@@ -221,6 +249,115 @@ def create_heatmap_streak(df, to_date, chart_name='heatmap_ytd_2026'):
         output_fig(fig, chart_name)
     return fig 
 
+def create_height_stack(reference_simple=False, overlay_image=False, chart_name='height_stack_ytd'):
+    # Set connection and query for book data
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql(
+        """
+        SELECT title, height
+        FROM books
+        WHERE status = 'completed'
+          AND height IS NOT NULL
+        ORDER BY created_on ASC
+        """, # First-read books go at bottom
+        conn,
+    )
+    conn.close()
+    # Just in case something is wrong with 'height' column
+    if df.empty:
+        raise ValueError("No completed books with height found.")
+    # Set reference height (fixed)
+    reference_height = MY_HEIGHT
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(8, 10))  # portrait orientation
+    # Basic layout
+    x_ref, x_stack = 0.2, 1
+    # Reference bar
+    if reference_simple:
+        ax.bar(
+            x_ref,
+            reference_height,
+            width=0.4,
+            color="#444444",
+            label="My Height"
+        )
+    else:
+        # Reference bar with proportions estimated
+        parts = list(HUMAN_PROPORTIONS.keys())[::-1]  # Feet on bottom
+        heights = [HUMAN_PROPORTIONS[p] * MY_HEAD_HEIGHT for p in parts]
+        # Colors
+        colors = cm.viridis(np.linspace(0, 1, len(parts))) # TBD
+        # Plot
+        bottom = 0
+        for part, h, color in zip(parts, heights, colors):
+            ax.bar(
+                x_ref,
+                h,
+                bottom=bottom,
+                width=0.4,
+                color=color,
+                edgecolor="none",
+                label=part # To ignore, set = None or possibly "none"
+            )
+            bottom += h
+    if overlay_image: 
+        # Draw your reference bar (can be empty or just for spacing)
+        ax.bar(0, MY_HEIGHT, width=0.4, color="#444444")
+        # Load PNG stick figure
+        img = mpimg.imread("stick_figure.png")  # path to your PNG
+        # Scale and position: match bar height and center on x=0
+        x_center = 0
+        bar_width = 0.4
+        # extent = [x_min, x_max, y_min, y_max]
+        ax.imshow(
+            img,
+            extent=[x_center - bar_width/2, x_center + bar_width/2, 0, MY_HEIGHT],
+            aspect='auto',   # stretch image to fill the vertical space
+            alpha=0.6,       # semi-transparent
+            zorder=5         # make sure it draws on top of bars
+        )
+    # Stacked books bar
+    bottom = 0
+    # Generate distinct colors
+    colors = cm.tab20(np.linspace(0, 1, len(df))) # Color map for various books
+    for (idx, row), color in zip(df.iterrows(), colors):
+        ax.bar(
+            x_stack,
+            row["height"],
+            bottom=bottom,
+            width=0.4,
+            color=color,
+            edgecolor="none",
+            label=row["title"]
+        )
+        bottom += row["height"]
+    # Format axes
+    ax.set_xticks([x_ref, x_stack])
+    ax.set_xticklabels(["Reference Height", "Completed Books (Stacked)"])
+    ax.set_ylabel("Height (inches)", fontsize=18)
+    ax.tick_params(labelsize=16)
+    # Optional: Clean
+    ax.spines["top"].set_alpha(0.3)
+    ax.spines["right"].set_alpha(0.3) # formerly: .set_visible(False)
+    # Legend: Hide legend automatically if too many books
+    if len(df) <= 10:
+        ax.legend(
+            # bbox_to_anchor=(1.05, 1), # Want it to float, so hide
+            loc="upper right",
+            frameon=False,
+            fontsize=14,
+            facecolor="white",
+            edgecolor="none",
+            framealpha=0.95
+        )
+    # Set title
+    ax.set_title("Total Height of Completed Books vs. Reference", fontsize=18)
+    # Layout
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
 def main():
     # Load theme
     sns.set_theme(style="whitegrid")
@@ -233,11 +370,12 @@ def main():
     today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
     # Run plotting functions
     print("begin creating graphics")
-    f1 = create_bar_chart_discrete(df_2026)
-    f2 = create_bar_chart_cumulative(df_2026)
-    f3 = create_pie_chart_pages(df_2026, today)
-    f4 = create_pie_chart_dowfreq(df_2026, today)
-    f5 = create_heatmap_streak(df_2026, today)
+    # f1 = create_bar_chart_discrete(df_2026)
+    # f2 = create_bar_chart_cumulative(df_2026)
+    # f3 = create_pie_chart_pages(df_2026, today)
+    # f4 = create_pie_chart_dowfreq(df_2026, today)
+    # f5 = create_heatmap_streak(df_2026, today)
+    f6 = create_height_stack()
     # TODO: Create GridSpec dashboard with these figs
     plt.close('all')
     

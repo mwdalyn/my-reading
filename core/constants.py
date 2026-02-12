@@ -70,7 +70,6 @@ READING_EVENTS_COLUMNS = {
     "updated_on": "TEXT DEFAULT (DATETIME('now'))",
 }
 
-
 # Define metadata options
 GENRES = {
     "action",
@@ -100,7 +99,6 @@ GENRES = {
     "western",
 }
 
-
 FORMATS = {'paperback','hardcover','book'} # 'book' = unknown; default
 ORIGINAL_LANGUAGES  = {
         "fr",    # French
@@ -112,7 +110,6 @@ ORIGINAL_LANGUAGES  = {
         "ro",    # Romanian
         "el",    # Greek (Modern)
     }
-
 # Reference: https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes
 
 # Enable abandonment
@@ -128,3 +125,19 @@ MY_COLOR="#008ddf"
 GOAL_COLOR="#4a4a4a"
 ABSENT_COLOR = "#eeeeee"
 
+DOW_COLORS = {
+    "Monday": "#6C3F81",
+    "Tuesday": "#84B478",
+    "Wednesday": "#DE895B",
+    "Thursday": "#F05C5F",
+    "Friday": "#B14D7A",
+    "Saturday": "#2782EA",
+    "Sunday": "#EDC948",
+}
+MY_HEIGHT = (5 * 12) + 6.5  
+MY_HEAD_HEIGHT = MY_HEIGHT/7.5 # starting from top assume 7.5 head proportions; feet are 1/2 
+HUMAN_PROPORTIONS = {"Head":1,
+                     "Torso":2.5,
+                     "Femurs":2,
+                     "Shins":1.5,
+                     "Feet":0.5}

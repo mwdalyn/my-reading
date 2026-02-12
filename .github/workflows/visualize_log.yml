@@ -58,7 +58,7 @@ jobs:
             git add data/reading.sqlite
 
             # Add any png or svg visual files
-            git add data/*.png data/*.svg
+            git add visuals/*.png visuals/*.svg
 
             # Commit only if there are changes
             if ! git diff-index --quiet HEAD --; then

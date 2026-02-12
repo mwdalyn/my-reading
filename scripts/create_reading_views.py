@@ -1,4 +1,10 @@
-import sqlite3
+import sqlite3, sys
+
+# Necessary for chart/graphic handling (and local testing) # TODO: Test this for removal; will os be able to handle?
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from core.constants import * 
 
