@@ -1,13 +1,14 @@
-import sqlite3, sys
+import sqlite3, sys, textwrap
 
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
+
+import matplotlib.pyplot as plt
 import matplotlib.dates as mdates # Special dates
-from matplotlib.colors import LinearSegmentedColormap # Special colormap
 import matplotlib.cm as cm # Color mapping generally
 import matplotlib.image as mpimg # Overlaying images on plots
-import numpy as np
+from matplotlib.colors import LinearSegmentedColormap # Special colormap
 
 ###################
 # Necessary for chart/graphic handling (and local testing) # TODO: Test this for removal; will os be able to handle?
@@ -21,7 +22,6 @@ from core.constants import *
 VIS_DIR = ROOT / "visuals"
 VIS_DIR.mkdir(exist_ok=True)
 ####################
-
 
 # Functions
 ## Universal load
@@ -41,6 +41,14 @@ def output_fig(fig_obj, fig_label): # TODO: Can this be more robust?
     fig_obj.savefig(f"{out_path}.svg", bbox_inches="tight")
     fig_obj.savefig(f"{out_path}.png", dpi=300, bbox_inches="tight")
     
+## Text and label handling
+def truncate_label(label):
+    return label if len(label) <= LEGEND_MAX_CHARS else label[:LEGEND_MAX_CHARS] + "…"
+
+def wrap_label(label, width=LEGEND_MAX_CHARS):
+    return "\n".join(textwrap.wrap(label, width=width))
+
+# Begin charts
 ## Hair chart
 def create_bar_chart_discrete(df, chart_name='bar_daily_2026'):
     # Set up 
@@ -273,6 +281,7 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     # Basic layout
     x_ref, x_stack = 0.3, 1
     width_scalar = 0.3 # Desired "standard width" in graphical terms
+    
     # Reference bar
     if reference_simple:
         ax.bar(
@@ -341,7 +350,16 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     # Optional: Clean
     ax.spines["top"].set_alpha(0.3)
     ax.spines["right"].set_alpha(0.3) # formerly: .set_visible(False)
-    # Legend: Hide legend automatically if too many books
+    # Legend: Hide legend automatically if too many books AND set limitation on 
+    # Example
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, [wrap_label(l, width=15) for l in labels], loc="upper right")
+
+    # Example: apply to your book titles
+    ax.legend(labels=[truncate_label(lbl) for lbl in ax.get_legend_handles_labels()[1]])
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, [truncate_label(l) for l in labels], loc="upper right")
+
     if len(df) <= 10:
         ax.legend(
             # bbox_to_anchor=(1.05, 1), # Want it to float, so hide

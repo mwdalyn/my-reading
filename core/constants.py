@@ -141,3 +141,6 @@ HUMAN_PROPORTIONS = {"Head":1,
                      "Femurs":2,
                      "Shins":1.5,
                      "Feet":0.5}
+
+### TODO: Add font_size defaults for graphics?
+LEGEND_MAX_CHARS = 18
