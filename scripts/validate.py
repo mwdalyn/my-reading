@@ -13,6 +13,8 @@ import os, requests, sqlite3
 
 from core.constants import * 
 
+OWNER, REPO = GITHUB_REPOSITORY.split("/")
+
 # Setup
 if not GITHUB_TOKEN:
     raise RuntimeError("GITHUB_TOKEN not set")
