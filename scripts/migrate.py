@@ -1,9 +1,16 @@
 '''Script to handle schema migration.'''
 
 # Imports
-import os, sqlite3
+import os, sqlite3, sys
 
 from core.constants import * 
+
+# #############
+# from pathlib import Path
+# ROOT = Path(__file__).resolve().parents[1]
+# sys.path.insert(0, str(ROOT))
+# DATA_DIR = ROOT / "data"
+# DATA_DIR.mkdir(exist_ok=True)
 
 # Schema versioning
 def ensure_schema_version(cur):
@@ -23,6 +30,11 @@ def get_schema_version(cur):
 def set_schema_version(cur, version):
     """Update schema_version table."""
     cur.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
+
+def add_column_if_not_exists(cur, table, column, definition):
+    cols = cur.execute(f"PRAGMA table_info({table})").fetchall()
+    if not any(col[1] == column for col in cols):
+        cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 # Initial schema
 def create_books_v1(cur):
@@ -245,12 +257,77 @@ def migration_4_add_library_books(cur):
     COMMIT;
     """)
 
+def migration_5_more_books_md(cur):
+    """Add various columns to 'books' table.'"""
+    add_column_if_not_exists(cur, "books", "original_language", "TEXT")
+    add_column_if_not_exists(cur, "books", "read_count", "INTEGER")
+    add_column_if_not_exists(cur, "books", "genre_primary", "TEXT")
+    add_column_if_not_exists(cur, "books", "genre_secondary", "TEXT")
+
+    """Move columns to desired places."""
+    cur.executescript("""
+    BEGIN;
+    ALTER TABLE books RENAME TO books_old;
+    CREATE TABLE books (
+        issue_id INTEGER PRIMARY KEY,
+        title TEXT,
+        author TEXT,
+        issue_number INTEGER,
+        status TEXT,
+        date_began TEXT,
+        date_ended TEXT,
+        publisher TEXT,
+        year_published TEXT,
+        year_edition TEXT,
+        isbn TEXT,
+        width REAL,
+        length REAL,
+        height REAL,
+        total_pages INTEGER,
+        word_count REAL,
+        library TEXT,
+        translator TEXT,
+        original_language TEXT DEFAULT 'en',
+        collection INTEGER DEFAULT 0,
+        read_count INTEGER DEFAULT 0, 
+        genre_primary TEXT,
+        genre_secondary TEXT,
+        created_on TEXT DEFAULT (DATETIME('now')),
+        updated_on TEXT DEFAULT (DATETIME('now'))
+    );
+    INSERT INTO books (
+        issue_id, title, author, issue_number, status,
+        date_began, date_ended,
+        publisher, year_published, year_edition,
+        isbn, width, length, height, total_pages,
+        word_count, library, translator, original_language,
+        collection, read_count, genre_primary, genre_secondary,
+        created_on, updated_on
+    )
+    SELECT
+        issue_id, title, author, issue_number, status,
+        date_began, date_ended,
+        publisher, year_published, year_edition,
+        isbn, width, length, height, total_pages,
+        word_count, library, translator,
+        COALESCE(original_language, 'en'),
+        COALESCE(collection, 0),
+        COALESCE(read_count, 0),
+        genre_primary,
+        genre_secondary,
+        created_on, updated_on
+    FROM books_old;
+    DROP TABLE books_old;
+    COMMIT;
+    """)
+    
 ## Migration dictionary
 MIGRATIONS = {
     1: migration_1_initial_schema,
     2: migration_2_datetime_defaults,
     3: migration_3_books_word_count_position,
     4: migration_4_add_library_books,
+    5: migration_5_more_books_md,
 }
 
 # Run

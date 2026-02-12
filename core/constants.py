@@ -5,7 +5,6 @@ GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH
 GITHUB_API = "https://api.github.com" # validate.py
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # validate.py
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY") # validate.py
-OWNER, REPO = GITHUB_REPOSITORY.split("/")
 
 # DB path # TODO: Add other paths, e.g. VIZ_PATH and ROOT here? Useful or no?
 DB_DIR = "data"
@@ -34,10 +33,14 @@ BOOKS_COLUMNS = {
     "height": "REAL",
     "total_pages": "INTEGER",
     "word_count":"REAL", # Added later; had used 'FLOAT' when creating in sql browser
-    "library":"TEXT", # Added later; for use with 
-    ## 
+    "library":"TEXT", # Added later; default 0 = home library
     "translator": "TEXT", # last_name, first_name
-    "collection": "INTEGER", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
+    "original_language":"TEXT DEFAULT 'en'", # Default to english code for now; want to track original language 
+    "collection": "INTEGER DEFAULT 0", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
+    # "format":"TEXT", # 'harcover' or 'paperback', opening things up to 'textbook' later (just in case)
+    "read_count":"INTEGER DEFAULT 0", # Number of times read before this time
+    "genre_primary":"TEXT", # Must be from a default list, see constants.py
+    "genre_secondary":"TEXT", # Must be from a default list, see constants.py
     ##
     "created_on": "TEXT DEFAULT (DATETIME('now'))",
     "updated_on": "TEXT DEFAULT (DATETIME('now'))",
