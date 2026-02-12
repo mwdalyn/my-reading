@@ -244,6 +244,68 @@ def ensure_page_one_events(conn, report=None):
             )
     print("Ensured all issues have page = 1 reading_events entry")
 
+def ensure_page_final_events(conn, report=None):
+    cur = conn.cursor()
+
+    issues = cur.execute(
+        """SELECT issue_id, total_pages, date_ended
+           FROM books"""
+    ).fetchall()
+
+    for row in issues:
+        issue_id = row["issue_id"]
+        total_pages = row["total_pages"]
+        date_ended = row["date_ended"]
+
+        # Skip unfinished books
+        if date_ended is None:
+            continue
+
+        # Check if final-page event already exists
+        existing = cur.execute(
+            """
+            SELECT source_id FROM reading_events
+            WHERE issue_id = ?
+              AND page = ?
+            LIMIT 1
+            """,
+            (issue_id, total_pages),
+        ).fetchone()
+
+        # Deterministic source_id (adjust convention as you like)
+        source_id = f"final:{issue_id}:{total_pages}"
+
+        if existing:
+            # Ensure date matches books.date_ended
+            cur.execute(
+                """
+                UPDATE reading_events
+                SET date = ?, updated_on = DATETIME('now')
+                WHERE source_id = ?
+                """,
+                (date_ended, existing["source_id"]),
+            )
+        else:
+            # Insert final-page event
+            cur.execute(
+                """
+                INSERT INTO reading_events
+                (source_id, issue_id, date, page, source)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    source_id,
+                    issue_id,
+                    date_ended,
+                    total_pages,
+                    "auto-finalize",
+                ),
+            )
+    # Commit
+    conn.commit()
+    print("Ensured all finished books have final-page reading_events entry")
+
+
 def ensure_source_id_reading_events(conn, report=None): # NOTE: This may not be needed; edge case arose 
     cur = conn.cursor()
     rows = cur.execute(
@@ -301,8 +363,9 @@ def main():
         fix_books_dates(conn, report=val_report)
         calculate_word_count(conn)
         fix_reading_events_dates(conn)
-        ensure_page_one_events(conn)
         ensure_source_id_reading_events(conn)
+        ensure_page_one_events(conn)
+        ensure_page_final_events(conn) # New
         dedupe_reading_events(conn)
 
         conn.commit() # Commit; report has been written if this is all successful
