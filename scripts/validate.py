@@ -20,8 +20,6 @@ if not GITHUB_TOKEN:
 if not GITHUB_REPOSITORY:
     raise RuntimeError("GITHUB_REPOSITORY not set")
 
-OWNER, REPO = GITHUB_REPOSITORY.split("/")
-
 # Reporting class for logging/stashing updates
 class ValidationReport:
     def __init__(self):
@@ -330,7 +328,6 @@ def main():
         # Close and show success
         conn.close()
         print(f"Validation report written to {report_path}")
-
 
 if __name__ == "__main__":
     main()

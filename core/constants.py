@@ -5,10 +5,17 @@ GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH
 GITHUB_API = "https://api.github.com" # validate.py
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # validate.py
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY") # validate.py
+OWNER, REPO = GITHUB_REPOSITORY.split("/")
 
-# Regex for sync.py
+# DB path # TODO: Add other paths, e.g. VIZ_PATH and ROOT here? Useful or no?
+DB_DIR = "data"
+DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
+VIZ_DIR = "visuals" 
+
+# Regex for sync.py and issue-body/comment parsing
 PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$") 
 DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
+
 ## SQL automation
 BOOKS_COLUMNS = {
     "issue_id": "INTEGER PRIMARY KEY",
@@ -60,8 +67,50 @@ READING_EVENTS_COLUMNS = {
     "updated_on": "TEXT DEFAULT (DATETIME('now'))",
 }
 
-DB_DIR = "data"
-DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
+
+# Define metadata options
+GENRES = {
+    "action",
+    "adventure",
+    "classic", # more of a label than a genre; assume this signifies "not-modern" and character-driven
+    "collection",
+    "comedy",
+    "crime",
+    "drama",
+    "dystopian",
+    "epic",
+    "fantasy",
+    "folklore",
+    "gothic",
+    "historical",
+    "horror",
+    "mystery",
+    "mythology",
+    "memoir",
+    "noir",
+    "postapoc", # postapocalyptic
+    "romance",
+    "scifi",
+    "supernatural",
+    "suspense",
+    "thriller",
+    "western",
+}
+
+
+FORMATS = {'paperback','hardcover','book'} # 'book' = unknown; default
+ORIGINAL_LANGUAGES  = {
+        "fr",    # French
+        "en",    # English
+        "it",    # Italian
+        "ru",    # Russian
+        "de",    # German
+        "es",    # Spanish
+        "ro",    # Romanian
+        "el",    # Greek (Modern)
+    }
+
+# Reference: https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes
 
 # Enable abandonment
 ABANDON_KEYWORDS = {"abandon","give_up"}
@@ -75,3 +124,4 @@ CALENDAR_END = "2026-12-31"
 MY_COLOR="#008ddf"
 GOAL_COLOR="#4a4a4a"
 ABSENT_COLOR = "#eeeeee"
+

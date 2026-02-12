@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
-# from datetime import datetime
 
+from core.constants import *
 ###################
-# Necessary for chart/graphic handling (and local testing)
+# Necessary for chart/graphic handling (and local testing) # TODO: Test this for removal; will os be able to handle?
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,8 +16,6 @@ sys.path.insert(0, str(ROOT))
 VIS_DIR = ROOT / "visuals"
 VIS_DIR.mkdir(exist_ok=True)
 ####################
-
-from core.constants import *
 
 # Functions
 ## Universal load

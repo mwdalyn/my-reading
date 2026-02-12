@@ -1,5 +1,4 @@
-import sqlite3, sys
-from pathlib import Path
+import sqlite3
 
 from core.constants import * 
 
