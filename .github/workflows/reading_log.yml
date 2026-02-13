@@ -32,7 +32,7 @@ jobs:
       #     path: ~/.cache/pip
       #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
 
-      - name: Clear pip cache
+      - name: Clear pip cache (debug)
         run: |
           pip cache purge
 
