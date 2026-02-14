@@ -8,3 +8,4 @@ rough/
 *.sqlite-journal
 data/library_key.txt
 
+user-agent.txt

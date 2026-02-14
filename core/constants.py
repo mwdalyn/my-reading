@@ -1,5 +1,10 @@
 import os, re
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent  # core/
+PROJECT_ROOT = BASE_DIR.parent              # my-reading/ for all executions
+
 # Constants
 GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH"
 GITHUB_API = "https://api.github.com" # validate.py
@@ -10,7 +15,8 @@ OWNER, REPO = GITHUB_REPOSITORY.split("/") # TODO: Is this really needed?
 # Wikipedia contact
 WIKI_BASE = "https://en.wikipedia.org/wiki/"
 
-def set_user_agent(headers_file='user-agent.txt'):
+USER_AGENT_FILE = PROJECT_ROOT / "user-agent.txt"
+def set_user_agent(headers_file=USER_AGENT_FILE):
 	wiki_user_headers = {}
 	with open(headers_file, 'r') as f:
 		for line in f:
@@ -25,13 +31,14 @@ def set_user_agent(headers_file='user-agent.txt'):
 		return None
 	return wiki_user_headers['User-Agent']
 
-WIKI_USER_AGENT = set_user_agent(headers_file=os.path.abspath(os.path.join("user-agent.txt"))) # Migrate this to constants...? Import html utils from m-l?
+WIKI_USER_AGENT = set_user_agent() # Migrate this to constants...? Import html utils from m-l?
 
 # DB path 
-DB_DIR = "data"
-DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
-VIS_DIR = "visuals" 
-GOALS_DIR = "data/goals"
+DATA_DIR = PROJECT_ROOT / "data"
+VIS_DIR = PROJECT_ROOT / "visuals"
+GOALS_DIR = DATA_DIR / "goals"
+DB_PATH = os.path.join(DATA_DIR,"reading.sqlite")
+# Skip mkdirs 
 
 # Regex for sync.py and issue-body/comment parsing
 PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$") 
@@ -161,7 +168,6 @@ CALENDAR_END = "2026-12-31"
 MY_COLOR="#008ddf"
 GOAL_COLOR="#4a4a4a"
 ABSENT_COLOR = "#eeeeee"
-
 DOW_COLORS = {
     "Monday": "#6C3F81",
     "Tuesday": "#84B478",
@@ -178,6 +184,5 @@ HUMAN_PROPORTIONS = {"Head":1,
                      "Femurs":2,
                      "Shins":1.5,
                      "Feet":0.5}
-
+LEGEND_MAX_CHARS = 26 # For text wrapping in legend(s), esp. with titles
 ### TODO: Add font_size defaults for graphics?
-LEGEND_MAX_CHARS = 26
