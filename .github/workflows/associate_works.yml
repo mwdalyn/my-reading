@@ -5,9 +5,5 @@ permissions:
   issues: read
 
 on:
-  # issues:
-  #   types: [opened, edited, closed]
-  # issue_comment:
-  #   types: [created, edited]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
