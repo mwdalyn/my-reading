@@ -25,7 +25,7 @@ def set_user_agent(headers_file='user-agent.txt'):
 		return None
 	return wiki_user_headers['User-Agent']
 
-WIKI_USER_AGENT = set_user_agent(headers_file=os.path.abspath(os.path.join(".","user-agent.txt"))) # Migrate this to constants...? Import html utils from m-l?
+WIKI_USER_AGENT = set_user_agent(headers_file=os.path.abspath(os.path.join("user-agent.txt"))) # Migrate this to constants...? Import html utils from m-l?
 
 # DB path 
 DB_DIR = "data"
