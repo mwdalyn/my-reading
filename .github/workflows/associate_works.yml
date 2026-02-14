@@ -7,3 +7,9 @@ permissions:
 on:
   workflow_dispatch: {}
 
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Do nothing
+        run: echo "This is a placeholder job until create_associations.py is completed"
