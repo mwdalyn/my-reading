@@ -50,6 +50,8 @@ jobs:
       - name: Sync reading data
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_REPOSITORY: ${{ secrets.GITHUB_REPOSITORY }} # May need for other workflows
+          # WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }} # May need for other workflows
           PYTHONPATH: .
         run: |
           python scripts/sync.py
