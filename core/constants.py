@@ -2,8 +2,8 @@ import os, re
 
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent  # core/
-PROJECT_ROOT = BASE_DIR.parent              # my-reading/ for all executions
+CORE_DIR = Path(__file__).resolve().parent  # core/
+PROJECT_ROOT = CORE_DIR.parent              # my-reading/ for all executions
 
 # Constants
 GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH"
