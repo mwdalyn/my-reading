@@ -24,11 +24,6 @@ def get_event_path():
         raise RuntimeError(f"Event file not found at: {EVENT_PATH}")
     return EVENT_PATH
 
-# Database path
-def validate_db():
-    if not os.path.exists(DB_DIR):
-        os.makedirs(DB_DIR)
-
 # Stash json response content to understand issue, comment features better
 def dump_github_payload(payload, out_dir="debug"):
     

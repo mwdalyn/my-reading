@@ -20,8 +20,6 @@ load_dotenv(dotenv_path=os.path.join(".env"))
 
 def main():
     # Begin tasks
-    ## Validate or create db
-    validate_db()
     ## Prepare by grabbing events (from local or from remote/issue history)
     event_path = get_event_path()
     with open(event_path) as f: # EVENT_PATH fixed to eq file path for events.json
