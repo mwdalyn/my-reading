@@ -82,7 +82,7 @@ def main():
             )
             for e in events_tmp:
                 print(e["date"])
-                e_date = parse_date(e['date'], dayfirst=False).strftime("%Y-%m-%d") # .replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
+                e_date = e['date'].strftime("%Y-%m-%d") # .replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
                 e["source_id"] = f"issue:{issue['id']}:{e_date}:{e['page']}" # Create source_id deduped
                 events.append(e)
 
