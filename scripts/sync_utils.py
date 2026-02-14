@@ -155,9 +155,9 @@ def sql_upsert(table, columns, conflict_key):
     insert_cols = ", ".join(col_names)
     placeholders = ", ".join("?" for _ in col_names)
     update_cols = ", ".join(
-        f"{c}=excluded.{c}"
-        for c in col_names
-        if c not in {conflict_key, "updated_on"}
+    f"{c}=COALESCE(excluded.{c}, {c})" # Do not update if NULL is passed to column
+    for c in col_names
+    if c not in {conflict_key, "updated_on"}
     )
     command = f"""
         INSERT INTO {table} ({insert_cols})
