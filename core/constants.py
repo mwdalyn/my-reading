@@ -33,6 +33,8 @@ PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$")
 DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
 
 ## SQL automation
+# Books table
+BOOKS_TABLE_NAME = 'books' # Not yet referenced anywhere but just in case
 BOOKS_COLUMNS = {
     "issue_id": "INTEGER PRIMARY KEY",
     "title": "TEXT", # Issue title
@@ -79,6 +81,7 @@ BOOK_METADATA_KEYS = {
 } # This captures everything "else;" everything that's added into the body of the issue not explicitly defined above
 
 # Reading Events table
+EVENTS_TABLE_NAME = 'reading_events'
 READING_EVENTS_COLUMNS = {
     "source_id": "TEXT PRIMARY KEY", 
     "issue_id": "INTEGER",
@@ -102,7 +105,38 @@ GOAL_COLUMNS = {
     "updated_on": "TIMESTAMP",
 }
 
-# Define metadata options
+# Authors table
+AUTHORS_TABLE_NAME = "authors"
+AUTHORS_COLUMNS = {"author_id": "INTEGER PRIMARY KEY",
+    "full_name": "TEXT NOT NULL UNIQUE",
+    "first_name": "TEXT",
+    "last_name": "TEXT",
+    # Begin metadata
+    "birth_year": "INTEGER",
+    "death_year": "INTEGER",
+    "age": "INTEGER",
+    "birth_country": "TEXT",
+    "nationality": "TEXT",
+    "home_country": "TEXT",
+    "ref_count": "INTEGER",
+    # End metadata
+    "created_on": "TEXT DEFAULT (DATETIME('now'))",
+    "updated_on": "TEXT DEFAULT (DATETIME('now'))"}
+AUTHORS_SYSTEM_COLUMNS = {
+    "author_id",
+    "full_name",
+    "first_name",
+    "last_name",
+    "created_on",
+    "updated_on",
+} # Provided in EVERY case by the creation of a book issue, updated as changes are made to the issue
+AUTHORS_METADATA_KEYS = {
+    col for col in AUTHORS_COLUMNS
+    if col not in AUTHORS_SYSTEM_COLUMNS
+}
+
+
+# Define 'books' table metadata options
 GENRES = {
     "action",
     "adventure",
@@ -130,7 +164,6 @@ GENRES = {
     "thriller",
     "western",
 }
-
 FORMATS = {'paperback','hardcover','book'} # 'book' = unknown; default
 ORIGINAL_LANGUAGES  = {
         "fr",    # French
