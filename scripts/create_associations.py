@@ -1,7 +1,5 @@
 # Imports
-import os, re, json, sqlite3, sys
-
-from datetime import datetime
+import sqlite3, sys
 
 # Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
 from pathlib import Path
@@ -11,10 +9,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.constants import DB_PATH
-
-# Constants
-DB_PATH = os.path.join(os.getcwd(), DB_PATH) # Similar in function to Path usage in other files; uncertain about which I prefer
-# TODO: Test and see if I can replace Path usage elsewhere with this; does it work locally?
 
 # Main
 def main():

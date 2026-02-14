@@ -1,37 +1,25 @@
 import os, re
 
 from pathlib import Path
+from dotenv import load_dotenv
 
+# Get/set project root and get secrets
 CORE_DIR = Path(__file__).resolve().parent  # core/
 PROJECT_ROOT = CORE_DIR.parent              # my-reading/ for all executions
-
+ENV_FILE = PROJECT_ROOT / ".env"
+if ENV_FILE.exists():
+    load_dotenv(dotenv_path=ENV_FILE)
+    
 # Constants
 GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH"
 GITHUB_API = "https://api.github.com" # validate.py
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # validate.py
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY") # validate.py
-OWNER, REPO = GITHUB_REPOSITORY.split("/") # TODO: Is this really needed? 
+OWNER, REPO = GITHUB_REPOSITORY.split("/") # validate.py # TODO: Is this really needed? 
 
 # Wikipedia contact
 WIKI_BASE = "https://en.wikipedia.org/wiki/"
-
-USER_AGENT_FILE = PROJECT_ROOT / "user-agent.txt"
-def set_user_agent(headers_file=USER_AGENT_FILE):
-	wiki_user_headers = {}
-	with open(headers_file, 'r') as f:
-		for line in f:
-			try:
-				# Parsing the txt
-				key, value = line.strip().split(':', 1)
-				key, value = key.replace("'","").strip(), value.replace("'","").strip()
-				wiki_user_headers[key] = value
-			except ValueError:
-				print(f"Skip: {line.strip()}")
-	if not wiki_user_headers['User-Agent']:
-		return None
-	return wiki_user_headers['User-Agent']
-
-WIKI_USER_AGENT = set_user_agent() # Migrate this to constants...? Import html utils from m-l?
+WIKI_USER_AGENT = os.environ.get("WIKI_USER_AGENT")
 
 # DB path 
 DATA_DIR = PROJECT_ROOT / "data"
