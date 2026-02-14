@@ -1,29 +1,15 @@
 '''Script to run with GitHub Actions (less frequent) that sets or updates reading_goals table.'''
 # Imports
-import sqlite3
-import os
+import os, sys, sqlite3
 
-# Constants
-GOALS_DIR = "data/goals"
-TABLE_NAME = "reading_goals"
+# Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
+from pathlib import Path
+# In lieu of packaging and running with python -m  
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Database path
-DB_DIR = "data"
-DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
-if not os.path.exists(DB_DIR):
-    os.makedirs(DB_DIR)
-
-# Edit this dict to add/remove columns
-GOAL_COLUMNS = {
-    "goal_id": "TEXT NOT NULL", # This is the file name
-    "year": "INTEGER NOT NULL",
-    "goal_name": "TEXT",
-    "book_goal": "INTEGER NOT NULL",
-    "page_goal": "INTEGER NOT NULL",
-    "avg_page_per_book": "FLOAT",
-    "created_on": "TIMESTAMP",
-    "updated_on": "TIMESTAMP",
-}
+from core.constants import * 
 
 # Functions
 def parse_goal_files():
@@ -74,16 +60,16 @@ def ensure_table_and_columns(conn):
             {},
             PRIMARY KEY (goal_id)
         )
-    """.format(TABLE_NAME, column_defs))
+    """.format(GOALS_TABLE_NAME, column_defs))
     # Get existing columns
-    cur.execute("PRAGMA table_info({})".format(TABLE_NAME))
+    cur.execute("PRAGMA table_info({})".format(GOALS_TABLE_NAME))
     existing_cols = set(row[1] for row in cur.fetchall())
     # Add missing columns
     for col, dtype in GOAL_COLUMNS.items():
         if col not in existing_cols:
             cur.execute(
                 "ALTER TABLE {} ADD COLUMN {} {}".format(
-                    TABLE_NAME, col, dtype
+                    GOALS_TABLE_NAME, col, dtype
                 )
             )
     # Commit updates
@@ -151,7 +137,7 @@ def upsert_goal(conn, data):
         ON CONFLICT(goal_id) DO UPDATE SET
         {}
     """.format(
-        TABLE_NAME,
+        GOALS_TABLE_NAME,
         ", ".join(columns),
         ", ".join(sql_values),
         assignments

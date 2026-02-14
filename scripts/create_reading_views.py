@@ -1,12 +1,15 @@
 import sqlite3, sys
 
-# Necessary for chart/graphic handling (and local testing) # TODO: Test this for removal; will os be able to handle?
+###################
+# Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+# In lieu of packaging and running with python -m  
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.constants import * 
+####################
 
 def main():
     # Set connection

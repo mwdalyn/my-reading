@@ -5,11 +5,33 @@ GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH
 GITHUB_API = "https://api.github.com" # validate.py
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # validate.py
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY") # validate.py
+OWNER, REPO = GITHUB_REPOSITORY.split("/") # TODO: Is this really needed? 
 
-# DB path # TODO: Add other paths, e.g. VIZ_PATH and ROOT here? Useful or no?
+# Wikipedia contact
+WIKI_BASE = "https://en.wikipedia.org/wiki/"
+
+def set_user_agent(headers_file='user-agent.txt'):
+	wiki_user_headers = {}
+	with open(headers_file, 'r') as f:
+		for line in f:
+			try:
+				# Parsing the txt
+				key, value = line.strip().split(':', 1)
+				key, value = key.replace("'","").strip(), value.replace("'","").strip()
+				wiki_user_headers[key] = value
+			except ValueError:
+				print(f"Skip: {line.strip()}")
+	if not wiki_user_headers['User-Agent']:
+		return None
+	return wiki_user_headers['User-Agent']
+
+WIKI_USER_AGENT = set_user_agent(headers_file=os.path.abspath(os.path.join(".","user-agent.txt"))) # Migrate this to constants...? Import html utils from m-l?
+
+# DB path 
 DB_DIR = "data"
 DB_PATH = os.path.join(DB_DIR,"reading.sqlite")
-VIZ_DIR = "visuals" 
+VIS_DIR = "visuals" 
+GOALS_DIR = "data/goals"
 
 # Regex for sync.py and issue-body/comment parsing
 PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$") 
@@ -60,6 +82,8 @@ BOOK_METADATA_KEYS = {
     col for col in BOOKS_COLUMNS
     if col not in BOOK_SYSTEM_COLUMNS
 } # This captures everything "else;" everything that's added into the body of the issue not explicitly defined above
+
+# Reading Events table
 READING_EVENTS_COLUMNS = {
     "source_id": "TEXT PRIMARY KEY", 
     "issue_id": "INTEGER",
@@ -68,6 +92,19 @@ READING_EVENTS_COLUMNS = {
     "source": "TEXT",
     "created_on": "TEXT DEFAULT (DATETIME('now'))",
     "updated_on": "TEXT DEFAULT (DATETIME('now'))",
+}
+
+# Goal table (and goal input file)
+GOALS_TABLE_NAME = "reading_goals"
+GOAL_COLUMNS = {
+    "goal_id": "TEXT NOT NULL", # This is the file name
+    "year": "INTEGER NOT NULL",
+    "goal_name": "TEXT",
+    "book_goal": "INTEGER NOT NULL",
+    "page_goal": "INTEGER NOT NULL",
+    "avg_page_per_book": "FLOAT",
+    "created_on": "TIMESTAMP",
+    "updated_on": "TIMESTAMP",
 }
 
 # Define metadata options

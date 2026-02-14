@@ -1,15 +1,20 @@
 '''Script to run with GitHub Actions in order to update database with new Issue interactions (publication, closure, comments).
 Creates the database for books, reading progress.'''
 # Imports
-import json, os, requests, time
-import sqlite3
+import json, os, sqlite3, requests, sys
+
+# Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
+from pathlib import Path
+# In lieu of packaging and running with python -m  
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.constants import * 
+from sync_utils import * 
 
 from dateutil.parser import parse as parse_date
 from dotenv import load_dotenv
-
-from sync_utils import * 
-from core.constants import * 
-
 # Load environment vars
 load_dotenv(dotenv_path=os.path.join(".env"))
 
@@ -78,7 +83,8 @@ def main():
                 source_id=None  # Set source_id later
             )
             for e in events_tmp:
-                e_date = parse_date(e['date']).strftime("%Y-%m-%d") # .replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
+                print(e["date"])
+                e_date = parse_date(e['date'], dayfirst=False).strftime("%Y-%m-%d") # .replace(tzinfo=None).strftime("%Y-%m-%d") # source_id only accepts date not datetime for that portion of the assignment
                 e["source_id"] = f"issue:{issue['id']}:{e_date}:{e['page']}" # Create source_id deduped
                 events.append(e)
 

@@ -9,11 +9,16 @@ from collections import defaultdict
 from functools import lru_cache
 from dateutil.parser import parse as parse_date
 
-import os, requests, sqlite3
+import os, requests, sqlite3, sys
+
+# Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
+from pathlib import Path
+# In lieu of packaging and running with python -m  
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.constants import * 
-
-OWNER, REPO = GITHUB_REPOSITORY.split("/")
 
 # Setup
 if not GITHUB_TOKEN:

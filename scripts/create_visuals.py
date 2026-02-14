@@ -11,16 +11,14 @@ import matplotlib.image as mpimg # Overlaying images on plots
 from matplotlib.colors import LinearSegmentedColormap # Special colormap
 
 ###################
-# Necessary for chart/graphic handling (and local testing) # TODO: Test this for removal; will os be able to handle?
+# Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
 from pathlib import Path
+# In lieu of packaging and running with python -m  
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from core.constants import *
-
-VIS_DIR = ROOT / "visuals"
-VIS_DIR.mkdir(exist_ok=True)
+from core.constants import * 
 ####################
 
 # Functions
