@@ -10,6 +10,9 @@ import matplotlib.cm as cm # Color mapping generally
 import matplotlib.image as mpimg # Overlaying images on plots
 from matplotlib.colors import LinearSegmentedColormap # Special colormap
 
+import folium
+from folium.plugins import MarkerCluster
+
 ###################
 # Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
 from pathlib import Path
@@ -115,11 +118,12 @@ def create_bar_chart_cumulative(df, chart_name='bar_cumulative_2026'):
         alpha=0.08,
         label="Great"
     )
-    ax.plot(
+    ax.bar(
         df["date_est"],
         df["my_reading_cumulative"],
         color=MY_COLOR,
-        linewidth=2,
+        edgecolor="none",
+        linewidth=3,
         label="Reading (c_)"
     )
     # Axes
@@ -287,6 +291,7 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
             reference_height,
             width=width_scalar,
             color="#121111",
+            edge_color="none",
             label="My Height"
         )
     else:
@@ -310,7 +315,7 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
             bottom += h
     if overlay_image: 
         # Draw your reference bar (can be empty or just for spacing)
-        ax.bar(0, MY_HEIGHT, width=0.4, color="#444444")
+        ax.bar(0, MY_HEIGHT, width=0.4, color="#444444", edgecolor="none")
         # Load PNG stick figure
         img = mpimg.imread("stick_figure.png")  # path to your PNG
         # Scale and position: match bar height and center on x=0
@@ -362,6 +367,7 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
             frameon=False,
             fontsize=14,
             facecolor="white",
+            # edgecolor="none", # frameon=False does the trick
             framealpha=0.95
         )
         # lgnd.get_frame().set_linewidth(0) # If you want to remove border, set ax.legend() = leg and apply this
@@ -372,6 +378,209 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
     if chart_name:
         output_fig(fig, chart_name)
     return fig
+
+def create_histogram_pages_per_day(df, chart_name='hist_pages_per_day'):
+    """Histogram of pages read per day with goal line."""
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Histogram
+    ax.hist(df['my_reading'], bins=range(0, int(df['my_reading'].max())+10, 5),
+            color=MY_COLOR, alpha=0.7, edgecolor="black")
+    
+    # Overlay goal line (assumes single fixed value)
+    goal_value = df['my_goal'].iloc[0] if 'my_goal' in df.columns else None
+    if goal_value:
+        ax.axvline(goal_value, color=GOAL_COLOR, linestyle='--', linewidth=2, label=f"Goal: {goal_value}")
+    
+    # Labels
+    ax.set_xlabel("Pages Read per Day")
+    ax.set_ylabel("Frequency")
+    ax.set_title("Histogram of Pages Read per Day")
+    ax.legend(frameon=False)
+    
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
+def create_pie_zero_nonzero_days(df, chart_name='pie_zero_nonzero_days'):
+    """Pie chart of Zero vs Non-Zero reading days year-to-date."""
+    today = pd.Timestamp.today().normalize()
+    df_2026 = df[df["date_est"].dt.year == 2026].copy()
+    counts = [
+        (df_2026['my_reading'] == 0).sum(),
+        (df_2026['my_reading'] > 0).sum()
+    ]
+    labels = ["Zero Days", "Non-Zero Days"]
+    colors = [ABSENT_COLOR, MY_COLOR]
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie(counts, labels=labels, autopct="%1.1f%%", startangle=90, colors=colors)
+    ax.set_title("Zero vs Non-Zero Reading Days (YTD)")
+    
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
+def create_bar_book_velocity(db_path=DB_PATH, chart_name='bar_book_velocity'):
+    """Bar chart showing book reading velocity (pages/day)."""
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql(
+        """
+        SELECT title, total_pages, 
+               JULIANDAY(date_ended) - JULIANDAY(date_began) AS days_taken
+        FROM books
+        WHERE status='completed'
+          AND total_pages IS NOT NULL
+          AND date_began IS NOT NULL
+          AND date_ended IS NOT NULL
+        """,
+        conn
+    )
+    conn.close()
+    
+    # Avoid division by zero
+    df = df[df['days_taken'] > 0].copy()
+    df['velocity'] = df['total_pages'] / df['days_taken']
+    
+    # Plot
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.bar(df['title'], df['velocity'], color=MY_COLOR, edgecolor="black")
+    
+    ax.set_xlabel("Book Title")
+    ax.set_ylabel("Pages per Day")
+    ax.set_title("Book Velocity (Completed Books)")
+    ax.set_xticklabels(df['title'], rotation=45, ha="right")
+    
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
+def create_hist_total_pages_completed(db_path=DB_PATH, chart_name='hist_total_pages'):
+    """Histogram of total_pages for completed books."""
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql(
+        "SELECT total_pages FROM books WHERE status='completed' AND total_pages IS NOT NULL",
+        conn
+    )
+    conn.close()
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.hist(df['total_pages'], bins=range(0, int(df['total_pages'].max())+50, 50),
+            color=MY_COLOR, alpha=0.7, edgecolor="black")
+    
+    ax.set_xlabel("Total Pages")
+    ax.set_ylabel("Number of Books")
+    ax.set_title("Distribution of Total Pages (Completed Books)")
+    
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
+def create_bar_books_by_year(chart_name="bar_books_by_year"):
+    """Bar chart counting number of books per year_published, covering 1780–2025."""
+    # Connect
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql(
+        """
+        SELECT year_published
+        FROM books
+        WHERE year_published IS NOT NULL
+        """,
+        conn
+    )
+    conn.close()
+
+    if df.empty:
+        raise ValueError("No books with year_published found.")
+
+    # Count books per year
+    counts = df.groupby("year_published").size()
+
+    # Ensure all years 1780–2025 are present
+    all_years = pd.Series(0, index=range(1780, 2026))
+    counts = all_years.add(counts, fill_value=0).astype(int)
+    x_vals = list(counts.index.astype(int))
+    y_vals = counts.values
+    
+    # Plot
+    fig, ax = plt.subplots(figsize=(20, 6))  # wider figure
+    ax.bar(x_vals, y_vals, color=MY_COLOR, alpha=0.7)
+    ax.set_xlabel("Year Published")
+    ax.set_ylabel("Number of Books")
+    ax.set_title("Books Published per Year (1780–2025)")
+
+    # X-ticks: show every 10 years to avoid clutter
+    xticks = range(1780, 2026, 10)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([str(y) for y in xticks], rotation=45, ha="right")
+
+    fig.tight_layout()
+    # Output
+    if chart_name:
+        output_fig(fig, chart_name)    
+    return fig
+
+# Map visuals
+def create_map_authors_country(chart_name="map_authors_birth_country"):
+    """Folium map with a pin per author based on birth_country. Add tooltip: first_name, last_name, birth_year."""
+    # Load authors with birth_country
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql(
+        """
+        SELECT first_name, last_name, birth_year, birth_country
+        FROM authors
+        WHERE birth_country IS NOT NULL
+        """,
+        conn
+    )
+    conn.close()
+
+    if df.empty:
+        raise ValueError("No authors with birth_country found.")
+    
+    # Approximate lat/lon using a simple country lookup
+    import geopy
+    from geopy.geocoders import Nominatim
+    geolocator = Nominatim(user_agent="my_reading_map")
+    
+    # Create folium map centered roughly
+    fmap = folium.Map(location=[20,0], zoom_start=2)
+    cluster = MarkerCluster().add_to(fmap)
+    
+    country_cache = {}
+    
+    for _, row in df.iterrows():
+        country = row["birth_country"]
+        tooltip = f"{row['first_name']} {row['last_name']}, {row['birth_year']}"
+        
+        # Geocode country (with caching)
+        if country not in country_cache:
+            try:
+                loc = geolocator.geocode(country)
+                if loc:
+                    country_cache[country] = (loc.latitude, loc.longitude)
+                else:
+                    country_cache[country] = None
+            except Exception:
+                country_cache[country] = None
+        
+        coords = country_cache.get(country)
+        if coords:
+            folium.Marker(
+                location=coords,
+                tooltip=tooltip,
+                icon=folium.Icon(color="blue", icon="user")
+            ).add_to(cluster)
+    
+    # Save as HTML
+    out_path = (VIS_DIR / f"{chart_name}.html").with_suffix("")
+    fmap.save(f"{out_path}.html")
+    return fmap
+
 
 def main():
     # Load theme
@@ -386,11 +595,17 @@ def main():
     # Run plotting functions
     print("begin creating graphics")
     # f1 = create_bar_chart_discrete(df_2026)
-    # f2 = create_bar_chart_cumulative(df_2026)
+    f2 = create_bar_chart_cumulative(df_2026)
     # f3 = create_pie_chart_pages(df_2026, today)
     # f4 = create_pie_chart_dowfreq(df_2026, today)
     # f5 = create_heatmap_streak(df_2026, today)
-    f6 = create_height_stack()
+    # f6 = create_height_stack()
+    # f7 = create_histogram_pages_per_day(df_2026)
+    # f8 = create_pie_zero_nonzero_days(df_2026)
+    # f9 = create_bar_book_velocity()
+    # f10 = create_hist_total_pages_completed()
+    f11 = create_bar_books_by_year()
+    # m1 = create_map_authors_country()
     # TODO: Create GridSpec dashboard with these figs
     plt.close('all')
     
