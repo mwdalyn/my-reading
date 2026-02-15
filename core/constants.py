@@ -9,7 +9,8 @@ PROJECT_ROOT = CORE_DIR.parent              # my-reading/ for all executions
 ENV_FILE = PROJECT_ROOT / ".env"
 if ENV_FILE.exists():
     load_dotenv(dotenv_path=ENV_FILE)
-    
+REQ_FILE = PROJECT_ROOT / "requirements.txt"
+
 # Constants
 GH_EVENT_PATH, GH_EVENT_PATH_TEST = "GITHUB_EVENT_PATH", "GITHUB_TEST_EVENT_PATH"
 GITHUB_API = "https://api.github.com" # validate.py
