@@ -20,7 +20,7 @@ def main():
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS calendar (
-            date TEXT PRIMARY KEY,     -- YYYY-MM-DD
+            date TEXT PRIMARY KEY,
             year INTEGER NOT NULL
         );
         """

@@ -1,17 +1,16 @@
 import sqlite3
 
 ## Custom sql generation functions
-def sql_create_table(db_path, table_name, columns_dict):
-    """Create a table from a dict of column definitions."""
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
+# def sql_create_table(db_path, table_name, columns_dict):
+#     """Create a table from a dict of column definitions."""
+#     conn = sqlite3.connect(db_path)
+#     cur = conn.cursor()
     
-    columns_sql = ",\n    ".join(f"{col} {col_type}" for col, col_type in columns_dict.items())
-    sql = f"CREATE TABLE IF NOT EXISTS {table_name} (\n    {columns_sql}\n);" 
-    cur.execute(sql)
-    
-    conn.commit()
-    conn.close()
+#     columns_sql = ",\n    ".join(f"{col} {col_type}" for col, col_type in columns_dict.items())
+#     sql = f"CREATE TABLE IF NOT EXISTS {table_name} (\n    {columns_sql}\n);" 
+#     cur.execute(sql)
+#     conn.commit()
+#     conn.close()
 
 def sql_create_table_cmd(table_name, columns_dict):
     """Create a table from a dict of column definitions."""

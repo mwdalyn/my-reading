@@ -93,12 +93,12 @@ def main():
     cur = conn.cursor()
 
     # Create tables as normal (somewhat redundant; SQL contains condition of "if doesn't exist" already)
-    cur.execute(sql_create_table("books", BOOKS_COLUMNS)) # New: for dynamic column addition
-    cur.execute(sql_create_table("reading_events", READING_EVENTS_COLUMNS)) # New: for dynamic column addition
+    cur.execute(sql_create_table_cmd(BOOKS_TABLE_NAME, BOOKS_COLUMNS)) # New: for dynamic column addition
+    cur.execute(sql_create_table_cmd(EVENTS_TABLE_NAME, READING_EVENTS_COLUMNS)) # New: for dynamic column addition
 
     # Add check to confirm all columns are OK
-    ensure_columns(cur, "books", BOOKS_COLUMNS)
-    ensure_columns(cur, "reading_events", READING_EVENTS_COLUMNS)
+    ensure_columns(cur, BOOKS_TABLE_NAME, BOOKS_COLUMNS)
+    ensure_columns(cur, EVENTS_TABLE_NAME, READING_EVENTS_COLUMNS)
 
     ## Books table updates
     # Ensure date_began and date_ended are reflected correctly.

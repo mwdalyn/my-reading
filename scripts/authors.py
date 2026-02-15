@@ -17,9 +17,6 @@ from core.constants import *
 from sql_utils import *
 
 # Functions
-# def sql_upsert(table_name, columns, conflict_key): # NOTE: This should be coming from sql_utils now.
-# def sql_create_table_cmd(table_name, columns_dict): # NOTE: This should be coming from sql_utils now.
-
 def sync_authors_from_books(db_path=DB_PATH):
     """Function to collect authors from 'books' table and inject into 'authors' table."""
     # Connect
@@ -53,7 +50,6 @@ def sync_authors_from_books(db_path=DB_PATH):
             parts = full_name.split()
             first_name = parts[0]
             last_name = parts[-1] if len(parts) > 1 else None
-
         # Upsert: skip if full_name is already present, and COALESVE first, last just in case
         cur.execute("""
             INSERT INTO authors (
@@ -208,9 +204,7 @@ def extract_author_fields(infobox):
 
 # Execute
 if __name__ == "__main__":
-    # Ensure authors table exists
-    sql_create_table(DB_PATH, AUTHORS_TABLE_NAME, AUTHORS_COLUMNS)
-    # Sync authors from books table
+    # Sync authors from books table (includes creating the table initially)
     sync_authors_from_books(DB_PATH)
     # Connect and query
     conn = sqlite3.connect(DB_PATH)
