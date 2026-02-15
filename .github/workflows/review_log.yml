@@ -1,0 +1,66 @@
+name: Add review if provided
+
+permissions: 
+  contents: write
+  issues: read
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  add-rating:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >
+      github.event.issue.state == 'closed' &&
+      contains(github.event.issue.labels.*.name, 'reading')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: pip install --upgrade pip  # No requriements needed
+
+      - name: Debug cwd & files
+        run: |
+          pwd
+          ls -R data
+
+      - name: Run reviews script
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          PYTHONPATH: .
+        run: python scripts/create_reviews.py
+
+      - name: Commit updated DB
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          # Add the updated DB
+          git add data/reading.sqlite
+
+          # Commit only if there are changes
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Update reading DB"
+          fi
+
+          # Retry loop for push (handles race conditions)
+          for i in {1..5}; do
+            git fetch origin
+            git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
+            if git push origin HEAD; then
+              echo "Push succeeded"
+              break
+            else
+              echo "Push failed, retrying..."
+              sleep 2
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 '''Triggered upon completion or a book; or, alternatively, triggered on workflow dispatch.
-For books that are closed or status == "completed" and rating is missing, parse their comments and look for a comment
-with the substring "rating:{}" and parse rating (out of 10) from {}.'''
+For books that are closed or status == "completed" and review is missing, parse their comments and look for a comment
+with the substring "review:{}" and parse the review text from {}. Must handle multiline reviews neatly.'''
 # Imports
 import os, re, json, sqlite3, sys
 
@@ -18,13 +18,11 @@ from core.constants import *
 ####################
 
 # Functions
-def extract_rating(comment_body):
-    """Parse comment starting with 'rating:' and return a float 0-10."""
-    match = re.match(r"^\s*rating\s*:\s*(\d+(?:\.\d+)?)", comment_body, re.IGNORECASE) # Looking for numeric after 'rating:' substring
+def extract_review(comment_body):
+    """Parse comment starting with 'review:' and return all text following it as a single string (including newlines)."""
+    match = re.match(r"^\s*review\s*:\s*(.*)", comment_body, re.IGNORECASE | re.DOTALL)
     if match:
-        val = float(match.group(1))
-        if 0 <= val <= 10:
-            return val
+        return match.group(1).rstrip()
     return None
 
 def main():
@@ -41,10 +39,10 @@ def main():
     if issue["state"] != "closed" or "reading" not in labels:
         print("Issue not closed or not labeled 'reading', exiting.")
         return
-    # Get rating from comment body
-    rating = extract_rating(comment_body)
-    if rating is None:
-        print("No valid rating found in comment, exiting.")
+    # Get review text (all) from comment body
+    review = extract_review(comment_body)
+    if review is None:
+        print("No valid review found, exiting.")
         return
     # Create 
     now = datetime.now().isoformat()
@@ -53,10 +51,10 @@ def main():
     cur = conn.cursor()
     # Ensure ratings table exists
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS ratings (
+        CREATE TABLE IF NOT EXISTS reviews (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             issue_id INTEGER NOT NULL,
-            rating REAL NOT NULL CHECK(rating >= 0 AND rating <= 10),
+            review TEXT NOT NULL,
             created_on TEXT DEFAULT (DATETIME('now')),
             updated_on TEXT DEFAULT (DATETIME('now')),
             UNIQUE(issue_id)
@@ -64,12 +62,12 @@ def main():
     """)
     # Insert or update rating
     cur.execute("""
-        INSERT INTO ratings (issue_id, rating, created_on, updated_on)
+        INSERT INTO reviews (issue_id, review, created_on, updated_on)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(issue_id) DO UPDATE SET
-            rating=excluded.rating,
+            review=excluded.review,
             updated_on=excluded.updated_on
-    """, (issue["id"], rating, now, now))
+    """, (issue["id"], review, now, now))
     # Commit close and report
     conn.commit()
     # Report out tables to confirm:
@@ -78,7 +76,7 @@ def main():
     print("Tables in DB:", tables)
     # Close
     conn.close()
-    print(f"Saved rating {rating} for issue {issue['number']}.")
+    print(f"Saved review {review} for issue {issue['number']}.")
 
 if __name__ == "__main__":
     main()
