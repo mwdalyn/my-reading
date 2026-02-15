@@ -208,3 +208,31 @@ HUMAN_PROPORTIONS = {"Head":1,
                      "Feet":0.5}
 LEGEND_MAX_CHARS = 26 # For text wrapping in legend(s), esp. with titles
 ### TODO: Add font_size defaults for graphics?
+
+## Map visuals
+# Country-level
+ADM0_SHAPEFILE_PATH = PROJECT_ROOT / "data" / "geo" / "adm0" / "geoBoundariesCGAZ_ADM0.shp"
+ADM0_GEOJSON_PATH = PROJECT_ROOT / "data" / "geo" / "countries.geojson"
+# Country- and muni-level (state)
+ADM1_SHAPEFILE_PATH = PROJECT_ROOT / "data" / "geo" / "adm1" / "geoBoundariesCGAZ_ADM1.shp"
+ADM1_GEOJSON_PATH = PROJECT_ROOT / "data" / "geo" / "countriesmunis.geojson"
+
+# Graph colorscale
+COLORSCALE = [
+    [0, "rgba(255,255,255,0)"],  # Transparent = 0
+    [0.0001, "#deebf7"], # Small positive
+    # TODO: Add more colors here if desired
+    [1, "#08306b"] # Maximum value
+]
+# Strip too-small countries
+COUNTRIES_TO_REMOVE = {
+    "Antarctica",
+    "Nauru",
+    "Tuvalu",
+    "Palau",
+    "Marshall Islands",
+    "Malta",
+    "Seychelles",
+    "Kiribati",
+    "Micronesia",
+}

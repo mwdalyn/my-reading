@@ -6,4 +6,10 @@ rough/
 *.env
 *.png
 *.sqlite-journal
+*.pyc
 data/library_key.txt
+# Shapefiles from https://www.geoboundaries.org/
+data/geo/adm0/*
+data/geo/adm1/* 
+*/__pycache__
+
