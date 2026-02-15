@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.constants import * 
 from sync_utils import * 
+from sql_utils import * 
 
 from dateutil.parser import parse as parse_date
 from dotenv import load_dotenv

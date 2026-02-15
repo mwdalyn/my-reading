@@ -14,39 +14,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.constants import * 
 ####################
+from sql_utils import *
 
 # Functions
-def create_table_if_not_exists(db_path, table_name, columns_dict):
-    """Create a table from a dict of column definitions. Like books table in sync.py."""
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    
-    columns_sql = ",\n    ".join(f"{col} {col_type}" for col, col_type in columns_dict.items())
-    sql = f"CREATE TABLE IF NOT EXISTS {table_name} (\n    {columns_sql}\n);" 
-    cur.execute(sql)
-    
-    conn.commit()
-    conn.close()
-
-def upsert_author(cur, table_name, data, conflict_key="full_name"):
-    """Inserts or updates an author dynamically. Uses COALESCE to avoid overwriting."""
-    # Set columns
-    columns = list(data.keys())
-    placeholders = ", ".join("?" for _ in columns)
-    # Build update clause (skip conflict key and created_on)
-    update_cols = ", ".join(
-        f"{col}=COALESCE(excluded.{col},{col})"
-        for col in columns
-        if col not in {conflict_key, "created_on"}
-    )
-    sql = f"""
-        INSERT INTO {table_name} ({', '.join(columns)})
-        VALUES ({placeholders})
-        ON CONFLICT({conflict_key}) DO UPDATE SET
-            {update_cols},
-            updated_on = DATETIME('now')
-    """
-    cur.execute(sql, tuple(data[col] for col in columns))
+# def sql_upsert(table_name, columns, conflict_key): # NOTE: This should be coming from sql_utils now.
+# def sql_create_table_cmd(table_name, columns_dict): # NOTE: This should be coming from sql_utils now.
 
 def sync_authors_from_books(db_path=DB_PATH):
     """Function to collect authors from 'books' table and inject into 'authors' table."""
@@ -54,24 +26,10 @@ def sync_authors_from_books(db_path=DB_PATH):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    # 1Create authors table if it doesn't exist
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS authors (
-            author_id INTEGER PRIMARY KEY,
-            full_name TEXT NOT NULL UNIQUE,
-            first_name TEXT,
-            last_name TEXT,
-            birth_year INTEGER,
-            death_year INTEGER,
-            age INTEGER,
-            birth_country TEXT,
-            nationality TEXT,
-            home_country TEXT,
-            ref_count INTEGER DEFAULT 0,
-            created_on TEXT DEFAULT (DATETIME('now')),
-            updated_on TEXT DEFAULT (DATETIME('now'))
-        );
-    """)
+    # Create authors table if it doesn't exist
+    cur.execute(
+        sql_create_table_cmd(AUTHORS_TABLE_NAME, AUTHORS_COLUMNS)
+    )
     # Get unique authors from books
     authors = cur.execute("""
         SELECT DISTINCT author
@@ -251,7 +209,7 @@ def extract_author_fields(infobox):
 # Execute
 if __name__ == "__main__":
     # Ensure authors table exists
-    create_table_if_not_exists(DB_PATH, AUTHORS_TABLE_NAME, AUTHORS_COLUMNS)
+    sql_create_table(DB_PATH, AUTHORS_TABLE_NAME, AUTHORS_COLUMNS)
     # Sync authors from books table
     sync_authors_from_books(DB_PATH)
     # Connect and query
@@ -292,7 +250,13 @@ if __name__ == "__main__":
             "ref_count": extracted.get("ref_count")
         }
         # Upsert
-        upsert_author(cur, AUTHORS_TABLE_NAME, upsert_data)
+        # TODO: Compare upsert_data to AUTHORS_COLUMNS or AUTHORS METADATA KEYS. Verify the above has everything that's expected so that it's actually fully dynamic.
+        sql = sql_upsert(AUTHORS_TABLE_NAME, upsert_data, "full_name")
+        columns_for_insert = [
+            c for c in upsert_data.keys()
+            if c not in {"created_on", "updated_on"}
+        ]
+        cur.execute(sql, tuple(upsert_data[c] for c in columns_for_insert))
         conn.commit()
         print("Updated.\n")
     # Close
