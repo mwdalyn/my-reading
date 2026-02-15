@@ -1,4 +1,4 @@
-import json, os, re, sys
+import json, os, re, sys, sqlite3
 
 from dateutil.parser import parse as parse_date
 
@@ -130,16 +130,46 @@ def extract_book_metadata(body, ):
     # Return
     return metadata
 
-## Custom SQL generation functions
-def sql_create_table(table_name, columns):
-    '''Creating a SQL table not with a fixed command, but with dynamic input.'''
-    cols = ",\n    ".join(f"{name} {ctype}" for name, ctype in columns.items())
-    command = f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            {cols}
-        )
-        """
-    return command
+def extract_events(text, fallback_date, source, source_id):
+    '''Extracting reading progress events from the body of an issue and from comments, as applicable; handles both.'''
+    events = []
+    text = text.strip()
+    # If m contains date in beginning of line like how I provide in issue-body (e.g. 'MMDDYYYY:{page}'), collect these events
+    m = DATED_PAGE_RE.match(text)
+    if m:
+        date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}") # This doesn't need tzinfo and reformatting; my method for inputting via Issue body doesn't include timestamp, just the date
+        events.append({
+            "page": int(m.group(2)),
+            "date": date,
+            "source": source,
+            "source_id": source_id,
+        })
+        return events
+
+    # If m contains only numbers and no date format suggestion followed by ':', realize this is a comment and collect just the page + assign 'fallback date' 
+    m = PAGE_NUMBER_RE.match(text)
+    if m:
+        events.append({
+            "page": int(m.group(1)),
+            "date": fallback_date, 
+            "source": source,
+            "source_id": source_id})
+        return events
+    # Return events
+    return events
+
+## Custom sql generation functions
+def sql_create_table(db_path, table_name, columns_dict):
+    """Create a table from a dict of column definitions."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    
+    columns_sql = ",\n    ".join(f"{col} {col_type}" for col, col_type in columns_dict.items())
+    sql = f"CREATE TABLE IF NOT EXISTS {table_name} (\n    {columns_sql}\n);" 
+    cur.execute(sql)
+    
+    conn.commit()
+    conn.close()
 
 def sql_upsert(table, columns, conflict_key):
     '''Upserting dynamically as well.'''
@@ -171,31 +201,3 @@ def ensure_columns(cur, table_name, columns):
     for name, ctype in columns.items():
         if name not in existing:
             cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {name} {ctype}")
-
-def extract_events(text, fallback_date, source, source_id):
-    '''Extracting reading progress events from the body of an issue and from comments, as applicable; handles both.'''
-    events = []
-    text = text.strip()
-    # If m contains date in beginning of line like how I provide in issue-body (e.g. 'MMDDYYYY:{page}'), collect these events
-    m = DATED_PAGE_RE.match(text)
-    if m:
-        date = parse_date(f"{m.group(1)[:2]}/{m.group(1)[2:4]}/{m.group(1)[4:]}") # This doesn't need tzinfo and reformatting; my method for inputting via Issue body doesn't include timestamp, just the date
-        events.append({
-            "page": int(m.group(2)),
-            "date": date,
-            "source": source,
-            "source_id": source_id,
-        })
-        return events
-
-    # If m contains only numbers and no date format suggestion followed by ':', realize this is a comment and collect just the page + assign 'fallback date' 
-    m = PAGE_ONLY_RE.match(text)
-    if m:
-        events.append({
-            "page": int(m.group(1)),
-            "date": fallback_date, 
-            "source": source,
-            "source_id": source_id})
-        return events
-    # Return events
-    return events

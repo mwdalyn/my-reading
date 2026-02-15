@@ -108,7 +108,6 @@ def main():
     # Parse datetimes
     issue_created_date = parse_date(issue["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
     earliest_event_date_obj = parse_date(earliest_event_date).strftime("%Y-%m-%d %H:%M:%S") if earliest_event_date else None
-    # TODO: Move this down to where date_began is created?
 
     # QA/QC: Infill missing created_on values for books table
     fill_missing_created_on(conn) # NOTE: TODO: This could likely be removed? Function duplicated by validate.py
@@ -138,14 +137,12 @@ def main():
 
     # Determine date_began and date_ended
     date_ended = parse_date(issue["closed_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if issue.get("closed_at") else None # TODO: Should change this so that it reflects when the 'done' comment is made; easy to forget to close it simultaneously
-    # date_ended = date_ended.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if date_ended is not None else None
 
     # Compute date_began
     if earliest_event_date_obj:
         date_began = min(issue_created_date, earliest_event_date_obj)
     else:
         date_began = issue_created_date
-    # date_began = date_began.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") # Already added this conversion above, including again for security
 
     # Set up upsert(s)
     SQL_UPSERT_BOOK = sql_upsert("books", BOOKS_COLUMNS, "issue_id")
@@ -169,12 +166,13 @@ def main():
 
     # Events table updates
     ## Create events list
-    ### Explore comments
+    ### Explore comments; treat each with the potential to have multiple lines, with more than one intent
     for comment in comments:
         for line in comment["body"].splitlines():
             line = line.strip()
             if not line:
                 continue # Skip empty
+            # Assess comment content for page tracking or other events
             fallback = parse_date(comment["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
             events_tmp = extract_events(
                 text=line,
