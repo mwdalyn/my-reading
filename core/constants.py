@@ -21,6 +21,7 @@ OWNER, REPO = GITHUB_REPOSITORY.split("/") # validate.py # TODO: Is this really 
 # Wikipedia contact
 WIKI_BASE = "https://en.wikipedia.org/wiki/"
 WIKI_USER_AGENT = os.environ.get("WIKI_USER_AGENT")
+WIKI_API = "https://en.wikipedia.org/w/api.php"
 
 # DB path 
 DATA_DIR = PROJECT_ROOT / "data"
@@ -120,7 +121,11 @@ AUTHORS_COLUMNS = {"author_id": "INTEGER PRIMARY KEY",
     "birth_country": "TEXT",
     "nationality": "TEXT",
     "home_country": "TEXT",
-    "ref_count": "INTEGER",
+    "wiki_url": "TEXT",
+    "wiki_ref_count": "INTEGER",
+    "wiki_creation_date": "TEXT",
+    "wiki_total_views": "INTEGER",
+    "wiki_edit_count": "INTEGER",
     # End metadata
     "created_on": "TEXT DEFAULT (DATETIME('now'))",
     "updated_on": "TEXT DEFAULT (DATETIME('now'))"}

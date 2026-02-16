@@ -2,8 +2,9 @@ import sqlite3, requests, sys, re
 
 from datetime import datetime
 from bs4 import BeautifulSoup
-from urllib.parse import quote
-
+from urllib.parse import quote, unquote, urlparse
+import requests, sys
+from dateutil.parser import parse as parse_date
 ###################
 # Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
 from pathlib import Path
@@ -140,7 +141,7 @@ def fetch_wiki_references(url):
     # Fetch page right away
     html = fetch_page(url)
     if not html:
-            return None # Fail
+        return None # Fail
     # Parse HTML
     soup = BeautifulSoup(html, "html.parser")    
     # Count <ref> tags (Wikipedia citations)
@@ -202,6 +203,83 @@ def extract_author_fields(infobox):
         "ref_count":ref_count
     }
 
+# Additional metrics
+def get_page_creation_date(title):
+    """Return ISO timestamp when the page was created, e.g., '2001-03-10T12:34:56Z'."""
+    HEADERS = {'User-Agent':WIKI_USER_AGENT}
+    params = {
+        "action": "query",
+        "format": "json",
+        "titles": title,
+        "prop": "revisions",
+        "rvdir": "newer",
+        "rvlimit": 1,          # first revision
+        "rvprop": "timestamp"
+    }
+    try:
+        r = requests.get(WIKI_API, params=params, headers=HEADERS, timeout=10)
+        r.raise_for_status()
+        pages = r.json()["query"]["pages"]
+        for page_id, page in pages.items():
+            revs = page.get("revisions")
+            if revs:
+                return revs[0]["timestamp"]
+    except Exception as e:
+        print(f"Error fetching creation date for {title}: {e}")
+    return None
+
+def get_total_pageviews(title):
+    """Return total views in last 60 days using Pageviews API."""
+    # Use Wikimedia REST API for pageviews
+    HEADERS = {'User-Agent':WIKI_USER_AGENT}
+    url = f"https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{title}/daily/20230101/20231231"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        views = sum(item["views"] for item in data.get("items", []))
+        return views
+    except Exception:
+        return None
+
+def get_total_edit_count(title):
+    """Return total number of edits/revisions for a page."""
+    HEADERS = {'User-Agent':WIKI_USER_AGENT}
+    params = {
+        "action": "query",
+        "format": "json",
+        "titles": title,
+        "prop": "revisions",
+        "rvprop": "ids",
+        "rvlimit": "max"  # will fetch first 500; can iterate for full count
+    }
+    try:
+        total_edits = 0
+        cont = {}
+        while True:
+            full_params = params.copy()
+            full_params.update(cont)
+            r = requests.get(WIKI_API, params=full_params, headers=HEADERS, timeout=10)
+            r.raise_for_status()
+            pages = r.json()["query"]["pages"]
+            for page_id, page in pages.items():
+                revs = page.get("revisions", [])
+                total_edits += len(revs)
+            if "continue" in r.json():
+                cont = r.json()["continue"]
+            else:
+                break
+        return total_edits
+    except Exception:
+        return None
+
+def extract_wiki_title(url):
+    """Convert URL to MediaWiki title string for API usage."""
+    path = urlparse(url).path  # e.g., '/wiki/John_Smith'
+    title = path.replace("/wiki/", "")
+    title = unquote(title)
+    return title
+
 # Execute
 if __name__ == "__main__":
     # Sync authors from books table (includes creating the table initially)
@@ -221,7 +299,7 @@ if __name__ == "__main__":
         author_id = row["author_id"]
         full_name = row["full_name"]
         print(f"Processing: {full_name}")
-        # Begin scraping
+        # Begin scraping author's page
         result = scrape_author_wikipedia(full_name)
         if not result:
             print(f"No Wiki page found for {full_name}. Skipping.\n")
@@ -229,7 +307,12 @@ if __name__ == "__main__":
         # If found, extract and update
         extracted = extract_author_fields(result["infobox"])
         extracted["ref_count"] = fetch_wiki_references(result["url"]) 
-        # TODO: Add other popularity metrics here
+        # Other data collection
+        wiki_title = extract_wiki_title(result["url"])
+        # Fetch new metrics
+        creation_date = parse_date(get_page_creation_date(wiki_title)).replace(tzinfo=None).strftime("%Y-%m-%d")
+        total_views = get_total_pageviews(wiki_title)
+        edit_count = get_total_edit_count(wiki_title)
         # Prepare upsert data
         upsert_data = {
             "full_name": full_name,
@@ -241,7 +324,11 @@ if __name__ == "__main__":
             "birth_country": extracted.get("birth_country"),
             "nationality": extracted.get("nationality"),
             "home_country": extracted.get("home_country"),
-            "ref_count": extracted.get("ref_count")
+            "wiki_url":result["url"],
+            "wiki_ref_count": extracted.get("ref_count"),
+            "wiki_creation_date": creation_date,
+            "wiki_total_views": total_views,
+            "wiki_edit_count": edit_count
         }
         # Upsert
         # TODO: Compare upsert_data to AUTHORS_COLUMNS or AUTHORS METADATA KEYS. Verify the above has everything that's expected so that it's actually fully dynamic.
