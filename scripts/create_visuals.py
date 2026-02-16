@@ -1,4 +1,4 @@
-import sqlite3, sys, textwrap
+import sqlite3, sys, textwrap, hashlib
 
 import pandas as pd
 import numpy as np
@@ -49,9 +49,16 @@ def truncate_label(label):
 def wrap_label(label, width=LEGEND_MAX_CHARS):
     return "\n".join(textwrap.wrap(label, width=width))
 
+## Color handling
+def title_to_color(title, cmap=plt.cm.tab20):
+    """Deterministically map title to color."""
+    hash_val = int(hashlib.md5(title.encode()).hexdigest(), 16)
+    color_index = hash_val % cmap.N
+    return cmap(color_index)
+
 # Begin charts
 ## Hair chart
-def create_bar_chart_discrete(df, chart_name='bar_pages_daily'):
+def create_bar_chart_discrete_v1(df, chart_name='bar_pages_daily_v1'):
     # Set up 
     fig, ax = plt.subplots(figsize=(17.5, 5))
     bar_width = 0.4 
@@ -82,6 +89,84 @@ def create_bar_chart_discrete(df, chart_name='bar_pages_daily'):
         edgecolor=MY_COLOR,
         label="Progress"
     )
+    # Axes
+    ax.set_ylim(0, 300) # Approx. maximum pages per day = 300
+    ax.set_ylabel("Pages Read")
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+    ax.set_xlim(
+        pd.Timestamp("2026-01-01"),
+        pd.Timestamp("2026-12-31") # TODO: Consider making this dynamic? 
+    )
+    # Legend
+    ax.legend(frameon=False)
+    ax.set_title("Daily Reading vs. Goal (2026)")
+    # Create layout
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
+def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_daily_v2'):
+    conn = sqlite3.connect(db_path)
+    df2 = pd.read_sql(
+        """
+        SELECT v.date_est, b.title, v.pages_read
+        FROM v_daily_book_progress v
+        LEFT JOIN books b
+            ON v.issue_id = b.issue_id
+        """, conn) # Get titles
+    conn.close()
+    df2["date_est"] = pd.to_datetime(df2["date_est"])
+    # Aggregate in case multiple rows per day/title
+    df_stack = (
+        df2.groupby(["date_est", "title"], as_index=False)["pages_read"]
+        .sum()
+    )
+    # Pivot so each title becomes a column
+    df_pivot = (
+        df_stack.pivot(index="date_est", columns="title", values="pages_read")
+        .fillna(0)
+        .sort_index()
+    )
+    df_pivot = df_pivot.reindex(df["date_est"]).fillna(0) # Reindex just in case to match "my_goal" df
+    # Set up 
+    fig, ax = plt.subplots(figsize=(17.5, 5))
+    bar_width = 0.4 
+    # Goal line
+    ax.plot( 
+        df["date_est"], # - pd.Timedelta(hours=12), # 12 hour offset for the sake of spacing
+        df["my_goal"],
+        color=GOAL_COLOR,
+        alpha=0.6,
+        linewidth=2,
+        linestyle="--",
+        label="Goal"
+    )
+    # Semi-transparent shaded area under goal
+    ax.fill_between(
+        df["date_est"],
+        0,
+        df["my_goal"],
+        color=GOAL_COLOR,
+        alpha=0.15  # adjust transparency
+    )
+    # Reading bars
+    bar_width = 0.6
+    bottom = np.zeros(len(df_pivot))
+
+    # Generate distinct colors automatically
+    for i, column in enumerate(df_pivot.columns):
+        ax.bar(
+            df_pivot.index + pd.Timedelta(hours=12),
+            df_pivot[column],
+            width=bar_width,
+            bottom=bottom,
+            label=column,
+            color=title_to_color(column), # colors[i % len(colors)],
+            edgecolor="none"
+        )
+    bottom += df_pivot[column].values # Stack on bottom
     # Axes
     ax.set_ylim(0, 300) # Approx. maximum pages per day = 300
     ax.set_ylabel("Pages Read")
@@ -196,15 +281,11 @@ def create_bar_book_velocity(db_path=DB_PATH, chart_name='bar_book_velocity'):
 
 def create_heatmap_streak(df, to_date, chart_name='heatmap_ytd'):
     # Calculate streak/day
+    df = df.sort_values("date_est")
     df["read_flag"] = df["my_reading"] > 0
-    df["streak"] = 0
-    current_streak = 0
-    for i, row in df.iterrows(): # TODO: Not scalable beyond 1 year most likely...? Could lag. Is there a better way? 
-        if row["read_flag"]:
-            current_streak += 1
-        else:
-            current_streak = 0
-        df.at[i, "streak"] = current_streak
+    # Create groups that reset after each False
+    groups = (~df["read_flag"]).cumsum()
+    df["streak"] = df["read_flag"].groupby(groups).cumsum()
     # Build grid
     df["week"] = df["date_est"].dt.isocalendar().week
     df["dow"] = df["date_est"].dt.weekday  # Monday = 0 index
@@ -308,9 +389,7 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
         # Load PNG stick figure
         img = mpimg.imread("stick_figure.png")  # path to your PNG
         # Scale and position: match bar height and center on x=0
-        x_center = 0
-        bar_width = 0.4
-        # extent = [x_min, x_max, y_min, y_max]
+        x_center, bar_width = 0, 0.4
         ax.imshow(
             img,
             extent=[x_center - bar_width/2, x_center + bar_width/2, 0, MY_HEIGHT],
@@ -329,11 +408,22 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
             row["height"],
             bottom=bottom,
             width=row["length"]*(width_scalar/reference_width), # Add "width" to input data and set width=row["width"] to get the correct width data # TODO
-            color=color,
+            color=title_to_color(row["title"]),
             edgecolor="none",
             label=row["title"]
         )
         bottom += row["height"]
+    # Add label
+    total_height = bottom
+    ax.text(
+        x_stack,
+        total_height + 1,  # small vertical offset
+        f"{total_height:.1f}\"",
+        ha="center",
+        va="bottom",
+        fontsize=20,
+        # fontweight="bold"
+    )
     # Format axes
     ax.set_xticks([x_ref, x_stack])
     ax.set_xticklabels(["Reference Height", "Completed Books (Stacked)"])
@@ -633,17 +723,18 @@ def main():
     today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
     # Run plotting functions
     print("begin creating graphics")
-    f1 = create_bar_chart_discrete(df_2026)
-    f2 = create_bar_chart_cumulative(df_2026)
-    f9 = create_bar_book_velocity()
-    f3 = create_pie_chart_pages(df_2026, today)
-    f4 = create_pie_chart_dowfreq(df_2026, today)
-    f8 = create_pie_zero_nonzero_days(df_2026)
-    f5 = create_heatmap_streak(df_2026, today)
+    f1 = create_bar_chart_discrete_v1(df_2026)
+    f1_2 = create_bar_chart_discrete_v2(df_2026)
+    # f2 = create_bar_chart_cumulative(df_2026)
+    # f9 = create_bar_book_velocity()
+    # f3 = create_pie_chart_pages(df_2026, today)
+    # f4 = create_pie_chart_dowfreq(df_2026, today)
+    # f8 = create_pie_zero_nonzero_days(df_2026)
+    # f5 = create_heatmap_streak(df_2026, today)
     f6 = create_height_stack()
-    f7 = create_histogram_daily_pages(df_2026)
-    f10 = create_histogram_book_lengths()
-    f11 = create_timeline_books()
+    # f7 = create_histogram_daily_pages(df_2026)
+    # f10 = create_histogram_book_lengths()
+    # f11 = create_timeline_books()
     # m1 = create_map_authors_country()
     # TODO: Create GridSpec dashboard with these figs
     plt.close('all')
