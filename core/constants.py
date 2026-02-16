@@ -30,8 +30,9 @@ DB_PATH = os.path.join(DATA_DIR,"reading.sqlite")
 # Skip mkdirs 
 
 # Regex for sync.py and issue-body/comment parsing
-PAGE_ONLY_RE = re.compile(r"^\s*(\d+)\s*$") 
-DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$")
+PAGE_NUMBER_RE = re.compile(r"^\s*(\d+)\s*$") # Comments contain page numbers only
+DATED_PAGE_RE = re.compile(r"^\s*(\d{8})\s*:\s*(\d+)\s*$") # Issue-Body contains "MMDDYYYY:"-style line, backdated reading 
+ASSOCIATE_RE = re.compile(r"(?i)^associate:\s*(.+)")
 
 ## SQL automation
 # Books table
@@ -136,6 +137,31 @@ AUTHORS_METADATA_KEYS = {
     if col not in AUTHORS_SYSTEM_COLUMNS
 }
 
+# Associations and Works tables
+WORKS_TABLE_NAME = 'works'
+WORKS_COLUMNS = {
+    "work_id": "INTEGER PRIMARY KEY", 
+    "title": "TEXT NOT NULL",
+    "author": "TEXT",
+    "format": "TEXT DEFAULT 'book'",
+    "notes": "TEXT",
+    "created_on": "TEXT DEFAULT (DATETIME('now'))",
+    "updated_on": "TEXT DEFAULT (DATETIME('now'))",
+}
+
+ASSOCIATION_TABLE_NAME = 'associations'
+ASSOCIATION_COLUMNS = {
+            "association_id" :"INTEGER PRIMARY KEY",
+            "source_work_id" :"INTEGER NOT NULL", # Ties to books table
+            "target_work_id" :"INTEGER NOT NULL", # Ties to works table
+            "page": "INTEGER",
+            "association_type": "TEXT",
+            "context" :"TEXT",
+            "created_on" :"TEXT DEFAULT (DATETIME('now'))",
+            "updated_on" :"TEXT DEFAULT (DATETIME('now'))",
+            "FOREIGN KEY (source_work_id)": "REFERENCES books(issue_id)",
+            "FOREIGN KEY (target_work_id)": "REFERENCES works(work_id)"
+}
 
 # Define 'books' table metadata options
 GENRES = {
@@ -165,7 +191,7 @@ GENRES = {
     "thriller",
     "western",
 }
-FORMATS = {'paperback','hardcover','book'} # 'book' = unknown; default
+FORMATS = {'hardcover','paperback','massmarket','textbook','book'} # 'book' = unknown; default. 'textbook' = to be built in
 ORIGINAL_LANGUAGES  = {
         "fr",    # French
         "en",    # English

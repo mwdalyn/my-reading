@@ -8,7 +8,30 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.constants import DB_PATH
+from core.constants import DB_PATH, ASSOCIATE_RE, ASSOCIATION_TABLE_NAME, ASSOCIATION_COLUMNS, WORKS_TABLE_NAME, WORKS_COLUMNS
+from sql_utils import * 
+
+# Functions
+def extract_associations(text):
+    '''Extracting reading progress events from the body of an issue and from comments, as applicable; handles both.'''
+    events = []
+    text = text.strip()
+    # Match
+    m = ASSOCIATE_RE.match(text)
+    if not m:
+        return events
+    rest = m.group(1)
+    parts = [p.strip() for p in rest.split("/", maxsplit=3)]
+    # Pad to ensure exactly 4 fields
+    while len(parts) < 4:
+        parts.append(None)
+    events.append({
+        "title": parts[0],
+        "author": parts[1],
+        "format": parts[2],
+        "notes": parts[3]
+    })
+    return events
 
 # Main
 def main():
@@ -17,36 +40,12 @@ def main():
     cur = conn.cursor()
     # Create (other) 'works' table
     cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS works (
-            work_id INTEGER PRIMARY KEY,
-            title TEXT NOT NULL,
-            author TEXT,
-            work_type TEXT DEFAULT 'book',
-            notes TEXT,
-            created_on TEXT DEFAULT (DATETIME('now')),
-            updated_on TEXT DEFAULT (DATETIME('now')),
-        );
-        """
+        sql_create_table_cmd(WORKS_TABLE_NAME, WORKS_COLUMNS)
     ) # References to works 'external' to the current books table
     # Create associations table
     cur.execute(
-        """
-        CREATE TABLE associations (
-            association_id INTEGER PRIMARY KEY,
-            source_work_id INTEGER NOT NULL,
-            target_work_id INTEGER NOT NULL,
-            page INTEGER,
-            association_type TEXT,
-            context TEXT,
-            created_on TEXT DEFAULT (DATETIME('now')),
-            updated_on TEXT DEFAULT (DATETIME('now')),
-            FOREIGN KEY (source_work_id) REFERENCES books(issue_id),
-            FOREIGN KEY (target_work_id) REFERENCES works(work_id)
-        );
-        """
+        sql_create_table_cmd(ASSOCIATION_TABLE_NAME, ASSOCIATION_COLUMNS)
     )
-
     # Commit
     conn.commit()
     conn.close()
