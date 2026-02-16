@@ -637,11 +637,11 @@ def create_histogram_daily_pages(df, chart_name='hist_pages_per_day'):
     vals = df.loc[df["my_reading"] > 0, "my_reading"]
     ax.hist(
         vals,
-        bins = range(0, int(vals.max()) + 25, 25),
+        bins = range(0, int(vals.max()) + 25, 10),
         color=MY_COLOR,
         alpha=0.7,
         edgecolor="none"
-    )
+    ) # TODO: Plot a label somewhere that notes the number of (non-zero) points constituting the hist; how many days accounted for?
     # Overlay goal line (assumes single fixed value)
     goal_value = df['my_goal'].iloc[0] if 'my_goal' in df.columns else None
     if goal_value:
@@ -791,16 +791,16 @@ def main():
     # Run plotting functions: Charts
     print("begin creating graphics")
     # f1 = create_bar_chart_discrete_v1(df_2026)
-    f2 = create_bar_chart_discrete_v2(df_2026)
+    # f2 = create_bar_chart_discrete_v2(df_2026)
     # f3 = create_bar_chart_cumulative(df_2026)
     # f4 = create_bar_book_velocity()
     # f5 = create_pie_chart_pages(df_2026, today)
     # f6 = create_pie_chart_dowfreq(df_2026, today)
     # f7 = create_pie_zero_nonzero_days(df_2026)
-    f8 = create_pie_chart_genre()
+    # f8 = create_pie_chart_genre()
     # f9 = create_heatmap_streak(df_2026, today)
     # f10 = create_height_stack()
-    # f11 = create_histogram_daily_pages(df_2026)
+    f11 = create_histogram_daily_pages(df_2026)
     # f12 = create_histogram_book_lengths()
     # f13 = create_timeline_books()
     # Maps
