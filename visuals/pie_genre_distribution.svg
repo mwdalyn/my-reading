@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-02-16T05:57:46.752804</dc:date>
+    <dc:date>2026-02-16T13:56:15.315053</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -39,7 +39,7 @@ C 324.777405 115.56684 305.00879 95.798225 281.208002 82.056833
 C 257.407214 68.315441 230.402783 61.079625 202.92 61.079625 
 L 202.92 217.655625 
 z
-" style="fill: #8c564b; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #2ca02c; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 202.919985 374.231625 
@@ -47,7 +47,7 @@ C 230.402769 374.231628 257.4072 366.995815 281.207989 353.254425
 C 305.008779 339.513035 324.777396 319.744421 338.518789 295.943633 
 L 202.92 217.655625 
 z
-" style="fill: #bcbd22; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #aec7e8; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
     <path d="M 67.321197 295.943608 
@@ -55,7 +55,7 @@ C 81.062585 319.744398 100.831198 339.513016 124.631985 353.25441
 C 148.432772 366.995804 175.437202 374.231622 202.919985 374.231625 
 L 202.92 217.655625 
 z
-" style="fill: #ff7f0e; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #c7c7c7; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
     <path d="M 67.321219 139.367604 
@@ -63,7 +63,7 @@ C 53.579823 163.16839 46.344004 190.17282 46.344 217.655603
 C 46.343996 245.138386 53.579808 272.142818 67.321197 295.943608 
 L 202.92 217.655625 
 z
-" style="fill: #e377c2; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #ff7f0e; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
     <path d="M 202.920029 61.079625 
@@ -71,7 +71,7 @@ C 175.437246 61.07962 148.432814 68.31543 124.632023 82.056818
 C 100.831232 95.798205 81.062614 115.566818 67.321219 139.367604 
 L 202.92 217.655625 
 z
-" style="fill: #bcbd22; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #c7c7c7; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="text_1">
     <!-- memoir -->
