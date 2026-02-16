@@ -1,0 +1,55 @@
+my-reading
+├── .github
+│   └── workflows
+│       ├── associate_works.yml
+│       ├── goal_log.yml
+│       ├── rating_log.yml
+│       ├── reading_log.yml
+│       ├── review_log.yml
+│       ├── validate_log.yml
+│       └── visualize_log.yml
+├── .gitignore
+├── README.md
+├── core
+│   └── constants.py
+├── data
+│   ├── events.json
+│   ├── geo
+│   │   └── countries.geojson
+│   ├── goals
+│   │   └── reading_2026_main.txt
+│   └── reading.sqlite
+├── requirements.txt
+├── return_requirements..py
+├── scripts
+│   ├── authors.py
+│   ├── create_associations.py
+│   ├── create_calendar.py
+│   ├── create_maps.py
+│   ├── create_ratings.py
+│   ├── create_reading_views.py
+│   ├── create_reviews.py
+│   ├── create_visuals.py
+│   ├── map_utils.py
+│   ├── migrate.py
+│   ├── set_goals.py
+│   ├── set_price.py
+│   ├── sql_utils.py
+│   ├── sync.py
+│   ├── sync_utils.py
+│   └── validate.py
+└── visuals
+    ├── bar_book_velocity.svg
+    ├── bar_books_by_year.svg
+    ├── bar_cumulative_2026.svg
+    ├── bar_daily_2026.svg
+    ├── heatmap_ytd_2026.svg
+    ├── height_stack_ytd.svg
+    ├── hist_pages_per_day.svg
+    ├── hist_total_pages.svg
+    ├── maps
+    │   ├── map_authors_birth_country.html
+    │   └── world_map_author_counts.html
+    ├── pie_dow_freq_2026.svg
+    ├── pie_dow_pages_2026.svg
+    └── pie_zero_nonzero_days.svg
