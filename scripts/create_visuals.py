@@ -51,10 +51,16 @@ def wrap_label(label, width=LEGEND_MAX_CHARS):
 
 ## Color handling
 def title_to_color(title, cmap=plt.cm.tab20):
-    """Deterministically map title to color."""
+    """Deterministically map title to color. Requires a string."""
     hash_val = int(hashlib.md5(title.encode()).hexdigest(), 16)
     color_index = hash_val % cmap.N
     return cmap(color_index)
+
+def genre_to_color(genre, cmap=plt.cm.tab20): # Same as title_to_color but distinct map
+    """Return a deterministic color for a genre string. Requires and accepts"""
+    hash_val = abs(hash(genre)) # Use hash to convert genre string to a number
+    color_idx = hash_val % cmap.N # Map into colormap index
+    return cmap(color_idx)
 
 # Begin charts
 ## Hair chart
@@ -62,16 +68,6 @@ def create_bar_chart_discrete_v1(df, chart_name='bar_pages_daily_v1'):
     # Set up 
     fig, ax = plt.subplots(figsize=(17.5, 5))
     bar_width = 0.4 
-    # Goal line
-    ax.plot( 
-        df["date_est"], # - pd.Timedelta(hours=12), # 12 hour offset for the sake of spacing
-        df["my_goal"],
-        color=GOAL_COLOR,
-        alpha=0.6,
-        linewidth=2,
-        linestyle="--",
-        label="Goal"
-    )
     # Semi-transparent shaded area under goal
     ax.fill_between(
         df["date_est"],
@@ -133,16 +129,6 @@ def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_dail
     # Set up 
     fig, ax = plt.subplots(figsize=(17.5, 5))
     bar_width = 0.4 
-    # Goal line
-    ax.plot( 
-        df["date_est"], # - pd.Timedelta(hours=12), # 12 hour offset for the sake of spacing
-        df["my_goal"],
-        color=GOAL_COLOR,
-        alpha=0.6,
-        linewidth=2,
-        linestyle="--",
-        label="Goal"
-    )
     # Semi-transparent shaded area under goal
     ax.fill_between(
         df["date_est"],
@@ -150,7 +136,7 @@ def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_dail
         df["my_goal"],
         color=GOAL_COLOR,
         alpha=0.15  # adjust transparency
-    )
+    ) # TODO: Can I add a label to a fill_between?
     # Reading bars
     bar_width = 0.6
     bottom = np.zeros(len(df_pivot))
@@ -166,9 +152,27 @@ def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_dail
             color=title_to_color(column), # colors[i % len(colors)],
             edgecolor="none"
         )
-    bottom += df_pivot[column].values # Stack on bottom
+        bottom += df_pivot[column].values # Stack on bottom
+    # Total pages per day
+    daily_totals = bottom
+    # Find max day
+    max_idx = np.argmax(daily_totals)
+    max_pages = daily_totals[max_idx]
+    max_date = df_pivot.index[max_idx]
+    # Add callout
+    ax.annotate(
+        f"Max: {int(max_pages)}",
+        xy=(max_date + pd.Timedelta(hours=12), max_pages),
+        xytext=(0, 8), # Offset in points
+        textcoords="offset points",
+        ha="center",
+        va="bottom",
+        fontsize=16,
+        # fontweight="bold"
+    )
     # Axes
-    ax.set_ylim(0, 300) # Approx. maximum pages per day = 300
+    upper = max(max_pages, df["my_goal"].max())
+    ax.set_ylim(0, upper * 1.1) # Dynamic
     ax.set_ylabel("Pages Read")
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
@@ -282,12 +286,20 @@ def create_bar_book_velocity(db_path=DB_PATH, chart_name='bar_book_velocity'):
 def create_heatmap_streak(df, to_date, chart_name='heatmap_ytd'):
     # Calculate streak/day
     df = df.sort_values("date_est")
+    full_range = pd.date_range( # Prepare to fill in missing dates with "0" reading values
+        df["date_est"].min(),
+        df["date_est"].max(),
+        freq="D"
+    )
+    df = df.set_index("date_est").reindex(full_range).rename_axis("date_est").reset_index()
+    df["my_reading"] = df["my_reading"].fillna(0) # Fill dates not in table with "0"
+    # Set flag
     df["read_flag"] = df["my_reading"] > 0
     # Create groups that reset after each False
     groups = (~df["read_flag"]).cumsum()
     df["streak"] = df["read_flag"].groupby(groups).cumsum()
     # Build grid
-    df["week"] = df["date_est"].dt.isocalendar().week
+    df["week"] = ((df["date_est"] - df["date_est"].min()).dt.days // 7) # 'Anchor' weeks by first Monday vs. iso
     df["dow"] = df["date_est"].dt.weekday  # Monday = 0 index
     pivot = df.pivot(
         index="dow",
@@ -300,28 +312,34 @@ def create_heatmap_streak(df, to_date, chart_name='heatmap_ytd'):
         pivot.loc[r["dow"], r["week"]] = -1
     # Custom colormap
     cmap = LinearSegmentedColormap.from_list(
-        "streaks",
-        [ABSENT_COLOR, MY_COLOR]
-        )
+        "streaks", [ABSENT_COLOR, MY_COLOR])
+    cmap = sns.light_palette(MY_COLOR, as_cmap=True) # Test new cmap
     # Plot
     fig, ax = plt.subplots(figsize=(18, 4))
     sns.heatmap(
         pivot,
         cmap=cmap,
-        cbar=True,
+        cbar=False, # Remove color bar (legend)
         linewidths=0.2,
         linecolor=ABSENT_COLOR,
         ax=ax
     )
     # Set up axes and labels
+    ax.set_ylabel("")
     ax.set_yticks(range(7))
     ax.set_yticklabels(
         ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
         rotation=0
     )
     ax.set_title("Reading Streaks — 2026")
+    # X-axis
     ax.set_xlabel("Week of Year")
-    ax.set_ylabel("")
+    month_starts = df.groupby(df["date_est"].dt.month)["week"].min()
+    ax.set_xticks(month_starts)
+    ax.set_xticklabels(
+        ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+        rotation=0
+    )
     # Layout
     fig.tight_layout()
     # Output
@@ -540,6 +558,55 @@ def create_pie_zero_nonzero_days(df, chart_name='pie_zero_days'):
         output_fig(fig, chart_name)
     return fig
 
+def create_pie_chart_genre(chart_name="pie_genre_distribution"):
+    # Connect + query
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql(
+        """
+        SELECT genre_primary, genre_secondary
+        FROM books
+        WHERE genre_primary IS NOT NULL
+        """,
+        conn,
+    )
+    conn.close()
+    if df.empty:
+        raise ValueError("No books found with genre_primary.")
+
+    # Count books per primary genre
+    genre_counts = (
+        df["genre_primary"]
+        .value_counts()
+        .sort_values(ascending=False)
+    )
+    # Optional: collapse very small slices (<5%) into "Other"
+    total = genre_counts.sum() # Used later 
+    threshold = 0.05  # 5%
+    small = genre_counts / total < threshold
+    if small.any():
+        other_total = genre_counts[small].sum()
+        genre_counts = genre_counts[~small]
+        genre_counts["Other"] = other_total
+    # Colors (consistent per genre if using deterministic mapping)
+    colors = [genre_to_color(g) for g in genre_counts.index]
+    # Figure
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie(
+        genre_counts,
+        labels=genre_counts.index,
+        autopct=lambda pct: f"{int(round(pct/100 * total))} ({pct:.1f}%)", # autopct="%1.1f%%",
+        colors=colors,
+        startangle=90,
+        counterclock=False
+    )
+    # Title and labeling
+    ax.set_title("Books by Primary Genre")
+    # Layout
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
+
 def create_histogram_book_lengths(db_path=DB_PATH, chart_name='hist_book_lengths'):
     """Histogram of total_pages for completed books."""
     conn = sqlite3.connect(db_path)
@@ -721,20 +788,23 @@ def main():
     df["date_est"] = pd.to_datetime(df["date_est"])
     df_2026 = df[df["date_est"].dt.year == 2026].copy()
     today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
-    # Run plotting functions
+    # Run plotting functions: Charts
     print("begin creating graphics")
-    f1 = create_bar_chart_discrete_v1(df_2026)
-    f1_2 = create_bar_chart_discrete_v2(df_2026)
-    # f2 = create_bar_chart_cumulative(df_2026)
-    # f9 = create_bar_book_velocity()
-    # f3 = create_pie_chart_pages(df_2026, today)
-    # f4 = create_pie_chart_dowfreq(df_2026, today)
-    # f8 = create_pie_zero_nonzero_days(df_2026)
-    # f5 = create_heatmap_streak(df_2026, today)
-    f6 = create_height_stack()
-    # f7 = create_histogram_daily_pages(df_2026)
-    # f10 = create_histogram_book_lengths()
-    # f11 = create_timeline_books()
+    # f1 = create_bar_chart_discrete_v1(df_2026)
+    f2 = create_bar_chart_discrete_v2(df_2026)
+    # f3 = create_bar_chart_cumulative(df_2026)
+    # f4 = create_bar_book_velocity()
+    # f5 = create_pie_chart_pages(df_2026, today)
+    # f6 = create_pie_chart_dowfreq(df_2026, today)
+    # f7 = create_pie_zero_nonzero_days(df_2026)
+    f8 = create_pie_chart_genre()
+    # f9 = create_heatmap_streak(df_2026, today)
+    # f10 = create_height_stack()
+    # f11 = create_histogram_daily_pages(df_2026)
+    # f12 = create_histogram_book_lengths()
+    # f13 = create_timeline_books()
+    # Maps
+    # print("begin creating maps")
     # m1 = create_map_authors_country()
     # TODO: Create GridSpec dashboard with these figs
     plt.close('all')
