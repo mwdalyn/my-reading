@@ -40,7 +40,7 @@ def load_ts_reading(db_path):
 def output_fig(fig_obj, fig_label): # TODO: Can this be more robust?
     out_path = (VIS_DIR / fig_label).with_suffix("")
     fig_obj.savefig(f"{out_path}.svg", bbox_inches="tight")
-    fig_obj.savefig(f"{out_path}.png", dpi=300, bbox_inches="tight")
+    # fig_obj.savefig(f"{out_path}.png", dpi=300, bbox_inches="tight") # Pause generating png as an inferior file type
     
 ## Text and label handling
 def truncate_label(label):
