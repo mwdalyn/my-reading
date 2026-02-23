@@ -801,8 +801,8 @@ def main():
     f9 = create_heatmap_streak(df_2026, today)
     f10 = create_height_stack()
     f11 = create_histogram_daily_pages(df_2026)
-    # f12 = create_histogram_book_lengths()
-    # f13 = create_timeline_books()
+    f12 = create_histogram_book_lengths()
+    f13 = create_timeline_books()
     # Maps
     # print("begin creating maps")
     # m1 = create_map_authors_country()
