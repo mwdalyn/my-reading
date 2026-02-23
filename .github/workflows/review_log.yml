@@ -5,15 +5,17 @@ permissions:
   issues: read
 
 on:
+  issues:
+    types: [closed]
   issue_comment:
-    types: [created]
+    types: [created, edited]
+
 
 jobs:
   add-rating:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: >
-      github.event.issue.state == 'closed' &&
       contains(github.event.issue.labels.*.name, 'reading')
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +26,9 @@ jobs:
           python-version: "3.9"
 
       - name: Install dependencies
-        run: pip install --upgrade pip  # No requriements needed
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir -r requirements.txt
 
       - name: Debug cwd & files
         run: |
