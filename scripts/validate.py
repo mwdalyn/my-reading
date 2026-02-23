@@ -110,13 +110,25 @@ def fix_books_dates(conn, report=None):
             updates["date_began"] = issue_meta["created_at"]
             if report:
                 report.record(
-                    rule="Books: date_began backfill",
+                    rule="Books: date_began backfill if NULL",
                     table="books",
                     identifier=f"issue_number={book['issue_number']}",
                     column="date_began",
                     old=None,
                     new=issue_meta["created_at"],
                 )
+        
+        # if book["date_began"] is not None:
+        #     # TODO: Enforce date_began either itself OR minimum reading_event recorded
+        #     if report:
+        #         report.record(
+        #             rule="Books: date_began match earliest reading_event",
+        #             table="books",
+        #             identifier=f"issue_number={book['issue_number']}",
+        #             column="date_began",
+        #             old=None,
+        #             new=issue_meta["created_at"],
+        #         )
 
         # date_ended
         if book["date_ended"] is None and book["status"] == "completed":
