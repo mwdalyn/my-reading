@@ -64,45 +64,6 @@ def genre_to_color(genre, cmap=plt.cm.tab20): # Same as title_to_color but disti
 
 # Begin charts
 ## Hair chart
-def create_bar_chart_discrete_v1(df, chart_name='bar_pages_daily_v1'):
-    # Set up 
-    fig, ax = plt.subplots(figsize=(17.5, 5))
-    bar_width = 0.4 
-    # Semi-transparent shaded area under goal
-    ax.fill_between(
-        df["date_est"],
-        0,
-        df["my_goal"],
-        color=GOAL_COLOR,
-        alpha=0.15  # adjust transparency
-    )
-    # Reading bars
-    ax.bar(
-        df["date_est"] + pd.Timedelta(hours=12), # 12 hour offset for the sake of spacing
-        df["my_reading"],
-        width=bar_width,
-        color=MY_COLOR,
-        edgecolor=MY_COLOR,
-        label="Progress"
-    )
-    # Axes
-    ax.set_ylim(0, 300) # Approx. maximum pages per day = 300
-    ax.set_ylabel("Pages Read")
-    ax.xaxis.set_major_locator(mdates.MonthLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
-    ax.set_xlim(
-        pd.Timestamp("2026-01-01"),
-        pd.Timestamp("2026-12-31") # TODO: Consider making this dynamic? 
-    )
-    # Legend
-    ax.legend(frameon=False)
-    ax.set_title("Daily Reading vs. Goal (2026)")
-    # Create layout
-    fig.tight_layout()
-    if chart_name:
-        output_fig(fig, chart_name)
-    return fig
-
 def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_daily_v2'):
     conn = sqlite3.connect(db_path)
     df2 = pd.read_sql(
@@ -790,7 +751,6 @@ def main():
     today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
     # Run plotting functions: Charts
     print("begin creating graphics")
-    f1 = create_bar_chart_discrete_v1(df_2026)
     f2 = create_bar_chart_discrete_v2(df_2026)
     f3 = create_bar_chart_cumulative(df_2026)
     f4 = create_bar_book_velocity()

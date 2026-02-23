@@ -25,7 +25,10 @@ def main():
         WITH re_with_prev AS (
             SELECT
                 issue_id,
-                date(datetime(date, '-5 hours')) AS date_est,
+                CASE
+                    WHEN source = 'comment' THEN date(datetime(date, '-5 hours'))
+                    ELSE date(date)
+                END AS date_est,
                 page,
                 LAG(page) OVER (PARTITION BY issue_id ORDER BY date) AS prev_page
             FROM reading_events
