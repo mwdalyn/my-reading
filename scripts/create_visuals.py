@@ -10,8 +10,8 @@ import matplotlib.cm as cm # Color mapping generally
 import matplotlib.image as mpimg # Overlaying images on plots
 from matplotlib.colors import LinearSegmentedColormap # Special colormap
 
-import folium
-from folium.plugins import MarkerCluster
+# import folium
+# from folium.plugins import MarkerCluster
 
 ###################
 # Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
