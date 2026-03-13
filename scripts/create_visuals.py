@@ -43,8 +43,8 @@ def output_fig(fig_obj, fig_label): # TODO: Can this be more robust?
     # fig_obj.savefig(f"{out_path}.png", dpi=300, bbox_inches="tight") # Pause generating png as an inferior file type
     
 ## Text and label handling
-def truncate_label(label):
-    return label if len(label) <= LEGEND_MAX_CHARS else label[:LEGEND_MAX_CHARS] + "…"
+def truncate_label(label, max_char=LEGEND_MAX_CHARS):
+    return label if len(label) <= max_char else label[:max_char] + "…"
 
 def wrap_label(label, width=LEGEND_MAX_CHARS):
     return "\n".join(textwrap.wrap(label, width=width))
@@ -682,62 +682,84 @@ def create_timeline_books(chart_name="timeline_books", plot_height=2.5):
         output_fig(fig, chart_name)
     return fig
 
-# Map visuals
-def create_map_authors_country(chart_name="map_authors_birth_country"):
-    """Folium map with a pin per author based on birth_country. Add tooltip: first_name, last_name, birth_year."""
-    # Load authors with birth_country
+def create_timeline_books_v2(chart_name="timeline_books_v2", plot_height=10, label_fontsize=14):
+    """Timeline of books published with flags and labels."""
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql(
         """
-        SELECT first_name, last_name, birth_year, birth_country
-        FROM authors
-        WHERE birth_country IS NOT NULL
+        SELECT year_published, title
+        FROM books
+        WHERE year_published IS NOT NULL
         """,
         conn
     )
     conn.close()
+    # Get publication range
+    df["year_published"] = pd.to_numeric(df["year_published"], errors="coerce")
+    df = df.dropna(subset=["year_published"])
+    df["year_published"] = df["year_published"].astype(int)
+    # Truncate title
+    df["title"] = df["title"].str.removeprefix("The ").apply(truncate_label)
 
-    if df.empty:
-        raise ValueError("No authors with birth_country found.")
+    min_year = df["year_published"].min()
+    max_year = df["year_published"].max()
+    x_min, x_max = min_year - 5, max_year + 5
+    x_center = (x_min + x_max) / 2
     
-    # Approximate lat/lon using a simple country lookup
-    import geopy
-    from geopy.geocoders import Nominatim
-    geolocator = Nominatim(user_agent="my_reading_map")
+    # Set flag height logic
+    max_flag_len = plot_height * 0.85
+    sorted_indices = df["year_published"].sort_values().index.tolist()
+    left_indices = [idx for idx in sorted_indices if df.loc[idx, "year_published"] <= x_center]
+    right_indices = [idx for idx in sorted_indices if df.loc[idx, "year_published"] > x_center]
+    y_step = max_flag_len / max(len(left_indices), len(right_indices))
     
-    # Create folium map centered roughly
-    fmap = folium.Map(location=[20,0], zoom_start=2)
-    cluster = MarkerCluster().add_to(fmap)
+    # Rank heights 
+    rank_from_end = {}    
+    for rank, idx in enumerate(reversed(left_indices)):
+        rank_from_end[idx] = rank  # 0 = closest to center, highest = furthest left
+    for rank, idx in enumerate(right_indices):
+        rank_from_end[idx] = rank  # 0 = closest to center, highest = furthest right
     
-    country_cache = {}
-    
+    # Establish plot
+    fig, ax = plt.subplots(figsize=(20, plot_height))
+    ax.axhline(0, color="gray", linestyle="--", linewidth=1, alpha=0.5, zorder=0)
+
+    # Plot
     for _, row in df.iterrows():
-        country = row["birth_country"]
-        tooltip = f"{row['first_name']} {row['last_name']}, {row['birth_year']}"
-        
-        # Geocode country (with caching)
-        if country not in country_cache:
-            try:
-                loc = geolocator.geocode(country)
-                if loc:
-                    country_cache[country] = (loc.latitude, loc.longitude)
-                else:
-                    country_cache[country] = None
-            except Exception:
-                country_cache[country] = None
-        
-        coords = country_cache.get(country)
-        if coords:
-            folium.Marker(
-                location=coords,
-                tooltip=tooltip,
-                icon=folium.Icon(color="blue", icon="user")
-            ).add_to(cluster)
-    
-    # Save as HTML
-    out_path = (VIS_DIR / f"{chart_name}.html").with_suffix("")
-    fmap.save(f"{out_path}.html")
-    return fmap
+        x = row["year_published"]
+        flag_len = (rank_from_end[_] + 1) * y_step * (1 if x <= x_center else -1)
+        # Plotting and labeling
+        ax.plot([x, x], [0, flag_len], color=MY_COLOR, linewidth=0.8, alpha=0.6, zorder=1)
+        ax.text(x, flag_len, truncate_label(row["title"].removeprefix("The ")),
+                fontsize=label_fontsize, 
+                ha="left" if x <= x_center else "right",
+                va="bottom" if flag_len >= 0 else "top",
+                color="black", alpha=0.85)
+
+    ax.scatter(df["year_published"], [0] * len(df), color=MY_COLOR, alpha=0.7, zorder=2, s=20)
+
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(plot_height*-1, plot_height)
+
+    step = 10 if (max_year - min_year) > 40 else 5
+    xticks = range(int(x_min // step * step), int((x_max // step + 1) * step), step)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([str(y) for y in xticks], fontsize=label_fontsize, rotation=0)
+
+    ax.set_yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(True)
+
+    ax.set_xlabel("Year Published", fontsize=label_fontsize+2)
+    ax.set_title("Books Published Timeline", fontsize=label_fontsize+4)
+
+    fig.tight_layout()
+
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
 
 def main():
     # Load theme
@@ -751,21 +773,19 @@ def main():
     today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
     # Run plotting functions: Charts
     print("begin creating graphics")
-    f2 = create_bar_chart_discrete_v2(df_2026)
-    f3 = create_bar_chart_cumulative(df_2026)
-    f4 = create_bar_book_velocity()
-    f5 = create_pie_chart_pages(df_2026, today)
-    f6 = create_pie_chart_dowfreq(df_2026, today)
-    f7 = create_pie_zero_nonzero_days(df_2026)
-    f8 = create_pie_chart_genre()
-    f9 = create_heatmap_streak(df_2026, today)
-    f10 = create_height_stack()
-    f11 = create_histogram_daily_pages(df_2026)
-    f12 = create_histogram_book_lengths()
-    f13 = create_timeline_books()
-    # Maps
-    # print("begin creating maps")
-    # m1 = create_map_authors_country()
+    # f2 = create_bar_chart_discrete_v2(df_2026)
+    # f3 = create_bar_chart_cumulative(df_2026)
+    # f4 = create_bar_book_velocity()
+    # f5 = create_pie_chart_pages(df_2026, today)
+    # f6 = create_pie_chart_dowfreq(df_2026, today)
+    # f7 = create_pie_zero_nonzero_days(df_2026)
+    # f8 = create_pie_chart_genre()
+    # f9 = create_heatmap_streak(df_2026, today)
+    # f10 = create_height_stack()
+    # f11 = create_histogram_daily_pages(df_2026)
+    # f12 = create_histogram_book_lengths()
+    # f13 = create_timeline_books()
+    f14 = create_timeline_books_v2()
     # TODO: Create GridSpec dashboard with these figs
     plt.close('all')
     
