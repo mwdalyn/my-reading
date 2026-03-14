@@ -10,8 +10,7 @@ import matplotlib.cm as cm # Color mapping generally
 import matplotlib.image as mpimg # Overlaying images on plots
 from matplotlib.colors import LinearSegmentedColormap # Special colormap
 
-# import folium
-# from folium.plugins import MarkerCluster
+import streamlit as st
 
 ###################
 # Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
@@ -53,26 +52,39 @@ def wrap_label(label, width=LEGEND_MAX_CHARS):
 def title_to_color(title, cmap=plt.cm.tab20):
     """Deterministically map title to color. Requires a string."""
     hash_val = int(hashlib.md5(title.encode()).hexdigest(), 16)
-    color_index = hash_val % cmap.N
-    return cmap(color_index)
+    return cmap(hash_val % cmap.N)
 
 def genre_to_color(genre, cmap=plt.cm.tab20): # Same as title_to_color but distinct map
     """Return a deterministic color for a genre string. Requires and accepts"""
-    hash_val = abs(hash(genre)) # Use hash to convert genre string to a number
-    color_idx = hash_val % cmap.N # Map into colormap index
-    return cmap(color_idx)
+    return cmap(abs(hash(genre)) % cmap.N)
+
+def load_ts_reading():
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql("SELECT * FROM ts_reading", conn, parse_dates=["date_est"])
+    conn.close()
+    df = df.sort_values("date_est")
+    df["date_est"] = pd.to_datetime(df["date_est"])
+    current_year = pd.Timestamp.today().year
+    return df[df["date_est"].dt.year == current_year].copy()
 
 # Begin charts
 ## Hair chart
-def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_daily_v2'):
+def create_bar_chart_discrete(to_date=None, db_path=DB_PATH, chart_name='bar_pages_daily_v2'):
+    # Load ts and to_date
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()
+    df = df[df["date_est"] <= to_date]
     conn = sqlite3.connect(db_path)
     df2 = pd.read_sql(
         """
         SELECT v.date_est, b.title, v.pages_read
         FROM v_daily_book_progress v
-        LEFT JOIN books b
-            ON v.issue_id = b.issue_id
-        """, conn) # Get titles
+        LEFT JOIN books b ON v.issue_id = b.issue_id
+        WHERE v.date_est <= :to_date
+        """,
+        conn,
+        params={"to_date": to_date.strftime("%Y-%m-%d")}) # Get titles
     conn.close()
     df2["date_est"] = pd.to_datetime(df2["date_est"])
     # Aggregate in case multiple rows per day/title
@@ -150,12 +162,14 @@ def create_bar_chart_discrete_v2(df, db_path=DB_PATH, chart_name='bar_pages_dail
         output_fig(fig, chart_name)
     return fig
 
-def create_bar_chart_cumulative(df, chart_name='bar_cumulative'):
+def create_bar_chart_cumulative(to_date=None, chart_name='bar_cumulative'):
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()
+    # Filter and remove cumulative (my_reading) after today's date
+    df_reading = df[df["date_est"] <= to_date].copy()
     # Set up
     fig, ax = plt.subplots(figsize=(17.5, 5))
-    # Filter and remove cumulative (my_reading) after today's date
-    today = pd.Timestamp.today().normalize()
-    df_reading = df[df["date_est"] <= today].copy()
     # Plot
     ax.plot(
         df["date_est"], # df["date_est"],
@@ -244,7 +258,11 @@ def create_bar_book_velocity(db_path=DB_PATH, chart_name='bar_book_velocity'):
         output_fig(fig, chart_name)
     return fig
 
-def create_heatmap_streak(df, to_date, chart_name='heatmap_ytd'):
+def create_heatmap_streak(to_date=None, chart_name='heatmap_ytd'):
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()  
+    
     # Calculate streak/day
     df = df.sort_values("date_est")
     full_range = pd.date_range( # Prepare to fill in missing dates with "0" reading values
@@ -437,7 +455,10 @@ def create_height_stack(reference_simple=False, overlay_image=False, chart_name=
         output_fig(fig, chart_name)
     return fig
 
-def create_pie_chart_pages(df, to_date, chart_name='pie_dow_pages'):
+def create_pie_chart_pages(to_date=None, chart_name='pie_dow_pages'):
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()
     dow_pages = (
         df[df["date_est"] < to_date]
         .assign(dow=lambda d: d["date_est"].dt.day_name())
@@ -466,7 +487,10 @@ def create_pie_chart_pages(df, to_date, chart_name='pie_dow_pages'):
         output_fig(fig, chart_name)
     return fig 
 
-def create_pie_chart_dowfreq(df, to_date, chart_name='pie_dow_freq'):
+def create_pie_chart_dowfreq(to_date=None, chart_name='pie_dow_freq'):
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()
     dow_days = (
     df[df["date_est"] < to_date]
     .assign(
@@ -499,20 +523,22 @@ def create_pie_chart_dowfreq(df, to_date, chart_name='pie_dow_freq'):
         output_fig(fig, chart_name)
     return fig 
 
-def create_pie_zero_nonzero_days(df, chart_name='pie_zero_days'):
+def create_pie_zero_nonzero_days(to_date=None, chart_name='pie_zero_days'):
     """Pie chart of Zero vs Non-Zero reading days year-to-date."""
-    today = pd.Timestamp.today().normalize()
-    df_2026 = df[df["date_est"].dt.year == 2026].copy()
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()
+    df = df[df["date_est"]<=to_date].copy()
     counts = [
-        (df_2026['my_reading'] == 0).sum(),
-        (df_2026['my_reading'] > 0).sum()
+        (df['my_reading'] == 0).sum(),
+        (df['my_reading'] > 0).sum()
     ]
     labels = ["Zero Days", "Non-Zero Days"]
     colors = [ABSENT_COLOR, MY_COLOR]
     
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.pie(counts, labels=labels, autopct="%1.1f%%", startangle=90, colors=colors)
-    ax.set_title("Zero vs Non-Zero Reading Days (YTD)")
+    ax.set_title("Zero vs. Non-Zero Reading Days")
     
     fig.tight_layout()
     if chart_name:
@@ -578,7 +604,7 @@ def create_histogram_book_lengths(db_path=DB_PATH, chart_name='hist_book_lengths
     # Set fig
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.hist(df['total_pages'], 
-            bins=range(0, int(df['total_pages'].max())+50, 25),
+            bins=range(0, int(df['total_pages'].max()) + 50, 5),
             color=MY_COLOR, alpha=0.7, edgecolor="none")
     # Labels
     ax.set_xlabel("Total Pages")
@@ -590,15 +616,18 @@ def create_histogram_book_lengths(db_path=DB_PATH, chart_name='hist_book_lengths
         output_fig(fig, chart_name)
     return fig
 
-def create_histogram_daily_pages(df, chart_name='hist_pages_per_day'):
+def create_histogram_daily_pages(to_date=None, chart_name='hist_pages_per_day'):
     """Histogram of pages read per day with goal line."""
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+    df = load_ts_reading()
     # Set fig
     fig, ax = plt.subplots(figsize=(12, 6))
     # Histogram
     vals = df.loc[df["my_reading"] > 0, "my_reading"]
     ax.hist(
         vals,
-        bins = range(0, int(vals.max()) + 25, 10),
+        bins = range(0, int(vals.max()) + 25, 5),
         color=MY_COLOR,
         alpha=0.7,
         edgecolor="none"
@@ -620,69 +649,7 @@ def create_histogram_daily_pages(df, chart_name='hist_pages_per_day'):
         output_fig(fig, chart_name)
     return fig
 
-def create_timeline_books(chart_name="timeline_books", plot_height=2.5):
-    """Timeline of books published with a horizontal reference line."""
-    # Connect and fetch data
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql(
-        """
-        SELECT year_published
-        FROM books
-        WHERE year_published IS NOT NULL
-        """,
-        conn
-    )
-    conn.close()
-
-    # Ensure numeric years
-    df["year_published"] = pd.to_numeric(df["year_published"], errors="coerce")
-    df = df.dropna(subset=["year_published"])
-    df["year_published"] = df["year_published"].astype(int)
-
-    min_year = df["year_published"].min()
-    max_year = df["year_published"].max()
-
-    # Set figure height and width
-    fig, ax = plt.subplots(figsize=(20, plot_height))
-
-    # Horizontal reference line at y=1
-    ax.axhline(1, color="gray", linestyle="--", linewidth=1, alpha=0.5, zorder=0)
-
-    # Scatter dots at y=1
-    ax.scatter(df["year_published"], [1] * len(df),
-               color=MY_COLOR, alpha=0.7, zorder=1)
-
-    # X-axis limits and ticks
-    ax.set_xlim(min_year - 2, max_year + 2)
-    step = 10 if (max_year - min_year) > 40 else 5
-    xticks = range(int(min_year // step * step),
-                   int((max_year // step + 1) * step),
-                   step)
-    ax.set_xticks(xticks)
-    ax.set_xticklabels([str(y) for y in xticks], rotation=45)
-
-    # Hide y-axis ticks
-    ax.set_yticks([])
-
-    # Remove top and right spines
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # Optional: remove bottom spine if you want only left border
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(True)
-
-    # Labels and title
-    ax.set_xlabel("Year Published")
-    ax.set_title("Books Published Timeline")
-
-    # Layout
-    fig.tight_layout()
-
-    if chart_name:
-        output_fig(fig, chart_name)
-    return fig
-
-def create_timeline_books_v2(chart_name="timeline_books_v2", plot_height=10, label_fontsize=14):
+def create_timeline_books(chart_name="timeline_books", plot_height=10, label_fontsize=14):
     """Timeline of books published with flags and labels."""
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql(
@@ -761,32 +728,24 @@ def create_timeline_books_v2(chart_name="timeline_books_v2", plot_height=10, lab
         output_fig(fig, chart_name)
     return fig
 
+
 def main():
     # Load theme
     sns.set_theme(style="whitegrid")
-    ## Setup graphics plot
-    df = load_ts_reading(DB_PATH)
-    # Ensure full 2026 calendar alignment
-    df = df.sort_values("date_est")
-    df["date_est"] = pd.to_datetime(df["date_est"])
-    df_2026 = df[df["date_est"].dt.year == 2026].copy()
-    today = pd.Timestamp.today().normalize() # NOTE: normalize() is good practice for handling date/datetimes (revisit)
     # Run plotting functions: Charts
     print("begin creating graphics")
-    # f2 = create_bar_chart_discrete_v2(df_2026)
-    # f3 = create_bar_chart_cumulative(df_2026)
-    # f4 = create_bar_book_velocity()
-    # f5 = create_pie_chart_pages(df_2026, today)
-    # f6 = create_pie_chart_dowfreq(df_2026, today)
-    # f7 = create_pie_zero_nonzero_days(df_2026)
-    # f8 = create_pie_chart_genre()
-    # f9 = create_heatmap_streak(df_2026, today)
-    # f10 = create_height_stack()
-    # f11 = create_histogram_daily_pages(df_2026)
-    # f12 = create_histogram_book_lengths()
-    # f13 = create_timeline_books()
-    f14 = create_timeline_books_v2()
-    # TODO: Create GridSpec dashboard with these figs
+    f2 = create_bar_chart_discrete()
+    f3 = create_bar_chart_cumulative()
+    f4 = create_bar_book_velocity()
+    f5 = create_pie_chart_pages()
+    f6 = create_pie_chart_dowfreq()
+    f7 = create_pie_zero_nonzero_days()
+    f8 = create_pie_chart_genre()
+    f9 = create_heatmap_streak()
+    f10 = create_height_stack()
+    f11 = create_histogram_daily_pages()
+    f12 = create_histogram_book_lengths()
+    f13 = create_timeline_books()
     plt.close('all')
     
 if __name__ == "__main__":
