@@ -5,17 +5,15 @@ permissions:
   issues: read
 
 on:
-  issues:
-    types: [closed]
   issue_comment:
     types: [created, edited]
 
-
 jobs:
-  add-rating:
+  add-review:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     if: >
+      github.event.issue.state == 'closed' &&
       contains(github.event.issue.labels.*.name, 'reading')
     steps:
       - uses: actions/checkout@v4
