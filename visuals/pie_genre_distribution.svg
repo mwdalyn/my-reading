@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-03-14T08:48:47.448990</dc:date>
+    <dc:date>2026-03-29T19:07:25.133877</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -39,7 +39,7 @@ C 324.588338 105.633278 305.53787 89.36264 283.522775 78.145389
 C 261.507681 66.928137 237.146875 61.079625 212.438756 61.079625 
 L 212.438756 217.655625 
 z
-" style="fill: #bcbd22; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #8c564b; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 212.438742 374.231625 
@@ -47,7 +47,7 @@ C 245.499209 374.231628 277.725328 363.76073 304.471809 344.328278
 C 331.218291 324.895825 351.135129 297.482653 361.351378 266.040281 
 L 212.438756 217.655625 
 z
-" style="fill: #98df8a; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #aec7e8; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
     <path d="M 63.526126 266.040253 
@@ -55,7 +55,7 @@ C 73.742368 297.482627 93.659202 324.895803 120.40568 344.32826
 C 147.152157 363.760718 179.378274 374.231622 212.438742 374.231625 
 L 212.438756 217.655625 
 z
-" style="fill: #17becf; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #dbdb8d; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
     <path d="M 63.526137 169.270962 
@@ -63,7 +63,7 @@ C 58.448911 184.897049 55.862758 201.225366 55.862756 217.655607
 C 55.862754 234.085848 58.448904 250.414165 63.526126 266.040253 
 L 212.438756 217.655625 
 z
-" style="fill: #98df8a; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #9edae5; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
     <path d="M 120.405709 90.982968 
@@ -71,7 +71,7 @@ C 107.113364 100.64042 95.423578 112.330202 85.766123 125.622545
 C 76.108668 138.914888 68.603363 153.644875 63.526137 169.270962 
 L 212.438756 217.655625 
 z
-" style="fill: #c7c7c7; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #2ca02c; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_7">
     <path d="M 212.438778 61.079625 
@@ -79,7 +79,7 @@ C 196.008537 61.079623 179.68022 63.665772 164.054132 68.742993
 C 148.428043 73.820215 133.698055 81.325516 120.405709 90.982968 
 L 212.438756 217.655625 
 z
-" style="fill: #aec7e8; stroke: #ffffff; stroke-linejoin: miter"/>
+" style="fill: #f7b6d2; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="text_1">
     <!-- gothic -->
