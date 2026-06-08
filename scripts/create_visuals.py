@@ -729,6 +729,7 @@ def create_timeline_books(chart_name="timeline_books", plot_height=10, label_fon
     return fig
 
 def create_error_plot_distance_from_goal(to_date=None, chart_name='error_distance_from_goal'):
+    # TODO: #65  
     """
     Plot the 'distance' from the cumulative page target for each day of the year.
     
@@ -755,7 +756,7 @@ def create_error_plot_distance_from_goal(to_date=None, chart_name='error_distanc
     df_past["day_of_year"] = df_past["date_est"].dt.dayofyear
     df_future["day_of_year"] = df_future["date_est"].dt.dayofyear
 
-    # --- Figure setup ---
+    # Figure setup 
     fig, ax = plt.subplots(figsize=(17.5, 5))
 
     # Zero midline
@@ -811,7 +812,7 @@ def create_error_plot_distance_from_goal(to_date=None, chart_name='error_distanc
             color=MY_COLOR if current_dist < 0 else GOAL_COLOR
         )
 
-    # --- Axes ---
+    ## Axes 
     # Symmetric y-axis centered on 0
     y_abs_max = df_past["distance"].abs().max() * 1.2 if not df_past.empty else 100
     ax.set_ylim(-y_abs_max, y_abs_max)
