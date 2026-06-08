@@ -728,6 +728,107 @@ def create_timeline_books(chart_name="timeline_books", plot_height=10, label_fon
         output_fig(fig, chart_name)
     return fig
 
+def create_error_plot_distance_from_goal(to_date=None, chart_name='error_distance_from_goal'):
+    """
+    Plot the 'distance' from the cumulative page target for each day of the year.
+    
+    y = my_goal_cumulative - my_reading_cumulative
+    
+    Positive values mean behind goal; negative means ahead.
+    y=0 is the midline. X-axis is days of the year with no tick labels.
+    """
+    if to_date is None:
+        to_date = pd.Timestamp.today().normalize()
+
+    df = load_ts_reading()
+    df = df.sort_values("date_est").reset_index(drop=True)
+
+    # Split into past (has actual reading data) and future (goal only)
+    df_past = df[df["date_est"] <= to_date].copy()
+    df_future = df[df["date_est"] > to_date].copy()
+
+    # Compute distance: positive = behind goal, negative = ahead of goal
+    df_past["distance"] = df_past["my_goal_cumulative"] - df_past["my_reading_cumulative"]
+
+    # Day-of-year as x (integer 1–365/366)
+    df["day_of_year"] = df["date_est"].dt.dayofyear
+    df_past["day_of_year"] = df_past["date_est"].dt.dayofyear
+    df_future["day_of_year"] = df_future["date_est"].dt.dayofyear
+
+    # --- Figure setup ---
+    fig, ax = plt.subplots(figsize=(17.5, 5))
+
+    # Zero midline
+    ax.axhline(0, color="gray", linewidth=1, linestyle="--", alpha=0.6, zorder=1)
+
+    # Shade regions: behind (above 0) vs ahead (below 0)
+    ax.fill_between(
+        df_past["day_of_year"],
+        0,
+        df_past["distance"],
+        where=df_past["distance"] >= 0,
+        color=GOAL_COLOR,
+        alpha=0.25,
+        label="Behind goal"
+    )
+    ax.fill_between(
+        df_past["day_of_year"],
+        0,
+        df_past["distance"],
+        where=df_past["distance"] < 0,
+        color=MY_COLOR,
+        alpha=0.25,
+        label="Ahead of goal"
+    )
+
+    # Main distance line (past only)
+    ax.plot(
+        df_past["day_of_year"],
+        df_past["distance"],
+        color=MY_COLOR,
+        linewidth=2,
+        zorder=2
+    )
+
+    # Vertical "today" marker
+    today_doy = to_date.dayofyear
+    ax.axvline(today_doy, color="gray", linewidth=0.8, linestyle=":", alpha=0.5)
+
+    # Annotate current distance
+    if not df_past.empty:
+        last = df_past.iloc[-1]
+        current_dist = last["distance"]
+        label_text = (
+            f"{'–' if current_dist < 0 else '+'}{abs(int(current_dist))} pages"
+        )
+        ax.annotate(
+            label_text,
+            xy=(last["day_of_year"], current_dist),
+            xytext=(8, 0),
+            textcoords="offset points",
+            va="center",
+            fontsize=14,
+            color=MY_COLOR if current_dist < 0 else GOAL_COLOR
+        )
+
+    # --- Axes ---
+    # Symmetric y-axis centered on 0
+    y_abs_max = df_past["distance"].abs().max() * 1.2 if not df_past.empty else 100
+    ax.set_ylim(-y_abs_max, y_abs_max)
+
+    # X: full year span, no tick labels
+    ax.set_xlim(1, 366)
+    ax.xaxis.set_major_locator(plt.NullLocator())
+    ax.set_xlabel("")
+
+    ax.set_ylabel("Pages Behind / Ahead of Goal")
+    ax.set_title("Distance from Cumulative Reading Goal (2026)")
+    ax.legend(frameon=False)
+
+    fig.tight_layout()
+    if chart_name:
+        output_fig(fig, chart_name)
+    return fig
 
 def main():
     # Load theme
@@ -746,6 +847,7 @@ def main():
     f11 = create_histogram_daily_pages()
     f12 = create_histogram_book_lengths()
     f13 = create_timeline_books()
+    f14 = create_error_plot_distance_from_goal()
     plt.close('all')
     
 if __name__ == "__main__":
