@@ -1,7 +1,7 @@
 '''Script to handle schema migration.'''
 
 # Imports
-import os, sqlite3, sys
+import sqlite3, sys
 
 # Ensure project root is on sys.path (solve proj layout constraint; robust for local + CI + REPL)
 from pathlib import Path
@@ -11,13 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.constants import * 
-
-# #############
-# from pathlib import Path
-# ROOT = Path(__file__).resolve().parents[1]
-# sys.path.insert(0, str(ROOT))
-# DATA_DIR = ROOT / "data"
-# DATA_DIR.mkdir(exist_ok=True)
 
 # Schema versioning
 def ensure_schema_version(cur):
@@ -84,6 +77,8 @@ def create_reading_events_v1(cur):
             updated_on TEXT DEFAULT (DATE('now'))
         )
     """)
+
+# TODO: Do I need to do this for all migrated tables? I have table definitions in constants.py.
 
 ## Migration 1
 def migration_1_initial_schema(cur):
@@ -165,6 +160,7 @@ def migration_2_datetime_defaults(cur):
     """Run datetime upgrades for books and reading_events."""
     migration_2_books_datetime(cur)
     migration_2_reading_events_datetime(cur)
+# TODO: Just combine the above into 1 functino, don't try to wrap them up. See migration 6.
 
 ## Migration 3
 def migration_3_books_word_count_position(cur):
@@ -216,8 +212,6 @@ def migration_3_books_word_count_position(cur):
 
 def migration_4_add_library_books(cur):
     """Add column 'library' immediately after most recent metadata column, 'word_count.'"""
-    cur.execute("ALTER TABLE books ADD COLUMN library TEXT;")
-    """Move library column immediately after word_count."""
     cur.executescript("""
     BEGIN;
     ALTER TABLE books RENAME TO books_old;
@@ -274,6 +268,10 @@ def migration_5_more_books_md(cur):
     """Move columns to desired places."""
     cur.executescript("""
     BEGIN;
+    DROP VIEW IF EXISTS v_daily_book_progress;
+    DROP VIEW IF EXISTS v_books_completed;
+    DROP VIEW IF EXISTS v_book_daily_pages;
+    DROP VIEW IF EXISTS ts_reading;
     ALTER TABLE books RENAME TO books_old;
     CREATE TABLE books (
         issue_id INTEGER PRIMARY KEY,
@@ -327,7 +325,180 @@ def migration_5_more_books_md(cur):
     DROP TABLE books_old;
     COMMIT;
     """)
-    
+
+def migration_6_book_author_updates(cur):
+    """Add various columns to 'books' and 'authors' table.'"""
+    add_column_if_not_exists(cur, "books", "est_price", "REAL")
+    add_column_if_not_exists(cur, "books", "format", "TEXT")
+    add_column_if_not_exists(cur, "authors", "birth_place", "TEXT")
+
+    """Move columns to desired places for books table."""
+    cur.executescript("""
+    BEGIN;
+    DROP VIEW IF EXISTS v_daily_book_progress;
+    DROP VIEW IF EXISTS v_books_completed;
+    DROP VIEW IF EXISTS v_book_daily_pages;
+    DROP VIEW IF EXISTS ts_reading;
+    ALTER TABLE books RENAME TO books_old;    
+    CREATE TABLE books (
+        issue_id INTEGER PRIMARY KEY,
+        title TEXT,
+        author TEXT,
+        issue_number INTEGER,
+        status TEXT,
+        date_began TEXT,
+        date_ended TEXT,
+        publisher TEXT,
+        year_published TEXT,
+        year_edition TEXT,
+        isbn TEXT,
+        width REAL,
+        length REAL,
+        height REAL,
+        total_pages INTEGER,
+        word_count REAL,
+        library INTEGER DEFAULT 0,
+        translator TEXT,
+        original_language TEXT DEFAULT 'en',
+        est_price REAL,
+        format TEXT DEFAULT 'paperback',
+        collection INTEGER DEFAULT 0,
+        read_count INTEGER DEFAULT 0,
+        genre_primary TEXT,
+        genre_secondary TEXT,
+        created_on TEXT DEFAULT (DATETIME('now')),
+        updated_on TEXT DEFAULT (DATETIME('now'))
+    );
+    INSERT INTO books (
+        issue_id,
+        title,
+        author,
+        issue_number,
+        status,
+        date_began,
+        date_ended,
+        publisher,
+        year_published,
+        year_edition,
+        isbn,
+        width,
+        length,
+        height,
+        total_pages,
+        word_count,
+        library,
+        translator,
+        original_language,
+        est_price,
+        format,
+        collection,
+        read_count,
+        genre_primary,
+        genre_secondary,
+        created_on,
+        updated_on
+    )
+    SELECT
+        issue_id,
+        title,
+        author,
+        issue_number,
+        status,
+        date_began,
+        date_ended,
+        publisher,
+        year_published,
+        year_edition,
+        isbn,
+        width,
+        length,
+        height,
+        total_pages,
+        word_count,
+        COALESCE(CAST(library AS INTEGER), 0),
+        translator,
+        COALESCE(original_language, 'en'),
+        est_price,
+        COALESCE(format, 'paperback'),
+        COALESCE(collection, 0),
+        COALESCE(CAST(read_count AS INTEGER), 0),
+        genre_primary,
+        genre_secondary,
+        created_on,
+        updated_on
+    FROM books_old;
+    DROP TABLE books_old;
+    COMMIT;
+    """)
+
+    """Move columns to desired places for authors."""
+    cur.executescript("""
+    BEGIN;
+    ALTER TABLE authors RENAME TO authors_old;
+    CREATE TABLE authors (
+        author_id INTEGER PRIMARY KEY,
+        full_name TEXT NOT NULL UNIQUE,
+        first_name TEXT,
+        last_name TEXT,
+        birth_year INTEGER,
+        death_year INTEGER,
+        age INTEGER,
+        birth_place TEXT,
+        birth_country TEXT,
+        nationality TEXT,
+        home_country TEXT,
+        wiki_url TEXT,
+        wiki_ref_count INTEGER,
+        wiki_creation_date TEXT,
+        wiki_total_views INTEGER,
+        wiki_edit_count INTEGER,
+        created_on TEXT DEFAULT (DATETIME('now')),
+        updated_on TEXT DEFAULT (DATETIME('now'))
+    );
+    INSERT INTO authors (
+        author_id,
+        full_name,
+        first_name,
+        last_name,
+        birth_year,
+        death_year,
+        age,
+        birth_place,
+        birth_country,
+        nationality,
+        home_country,
+        wiki_url,
+        wiki_ref_count,
+        wiki_creation_date,
+        wiki_total_views,
+        wiki_edit_count,
+        created_on,
+        updated_on
+    )
+    SELECT
+        author_id,
+        full_name,
+        first_name,
+        last_name,
+        birth_year,
+        death_year,
+        age,
+        birth_place,
+        birth_country,
+        nationality,
+        home_country,
+        wiki_url,
+        wiki_ref_count,
+        wiki_creation_date,
+        wiki_total_views,
+        wiki_edit_count,
+        created_on,
+        updated_on
+    FROM authors_old;
+    DROP TABLE authors_old;
+    COMMIT;
+    """)
+
 ## Migration dictionary
 MIGRATIONS = {
     1: migration_1_initial_schema,
@@ -335,6 +506,7 @@ MIGRATIONS = {
     3: migration_3_books_word_count_position,
     4: migration_4_add_library_books,
     5: migration_5_more_books_md,
+    6: migration_6_book_author_updates,
 }
 
 # Run

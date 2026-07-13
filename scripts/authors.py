@@ -166,6 +166,7 @@ def extract_author_fields(infobox):
     death_year = None
     age = None
     birth_country = None
+    birth_place = None
     nationality = None
     ref_count = None
     # Birth
@@ -178,6 +179,8 @@ def extract_author_fields(infobox):
         parts = [p.strip() for p in born.split(",")]
         if len(parts) > 1:
             birth_country = parts[-1]
+            birth_place = parts[-2]
+        print("Born parts:",parts)
         # TODO: Add authors birth_place (town) to the mix at this point in the process #74
 
     # Death
