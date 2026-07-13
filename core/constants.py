@@ -255,7 +255,7 @@ COLORSCALE = [
     # TODO: Add more colors here if desired
     [1, "#08306b"] # Maximum value
 ]
-# Strip too-small countries
+# Strip too-small countries out
 COUNTRIES_TO_REMOVE = {
     "Antarctica",
     "Nauru",
@@ -266,4 +266,15 @@ COUNTRIES_TO_REMOVE = {
     "Seychelles",
     "Kiribati",
     "Micronesia",
+}
+
+STANDARDIZE_COUNTRIES = { # For now, this is not long-term ideal but gets us back on track
+    "Kingdom of Italy":"Italy",
+    "Russian Empire":"Russia",
+    "England":"United Kingdom",
+    "U.K.":"United Kingdom",
+    "UK":"United Kingdom",
+    "U.S.":"United States",
+    "USA":"United States",
+    "U.S.A.":"United States",
 }

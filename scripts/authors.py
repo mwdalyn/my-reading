@@ -14,8 +14,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.constants import * 
-####################
 from sql_utils import *
+####################
 
 # Functions
 def sync_authors_from_books(db_path=DB_PATH):
@@ -178,6 +178,7 @@ def extract_author_fields(infobox):
         parts = [p.strip() for p in born.split(",")]
         if len(parts) > 1:
             birth_country = parts[-1]
+        # TODO: Add authors birth_place (town) to the mix at this point in the process #74
 
     # Death
     died = infobox.get("Died") # TODO: Would "Death" be one to check for? Or "__ Died:"
@@ -202,6 +203,9 @@ def extract_author_fields(infobox):
     # Fallback: use birth country
     if not nationality and birth_country:
         nationality = birth_country
+    # Standardize birth_country
+    if birth_country:
+        birth_country = STANDARDIZE_COUNTRIES.get(birth_country, birth_country)
     # Return dict
     return {
         "birth_year": birth_year,
