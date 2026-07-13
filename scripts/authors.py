@@ -85,10 +85,20 @@ def build_candidate_urls(full_name):
         last = parts[-1] if len(parts) > 1 else None
     candidates = []
     if first and last:
-        candidates.append(f"{WIKI_BASE}{quote(first + '_' + last)}")
+        candidates.append(f"{WIKI_BASE}{quote(first + ' ' + last)}") # quote() = URL friendly handling of special chars
+        candidates.append(f"{WIKI_BASE}{quote(first + ' ' + last + ' (author)')}") # quote() = URL friendly handling of special chars
+        candidates.append(f"{WIKI_BASE}{quote(first + ' ' + last + ' (writer)')}") # quote() = URL friendly handling of special chars
+        candidates.append(f"{WIKI_BASE}{quote(first + '_' + last)}") # quote() = URL friendly handling of special chars
+        candidates.append(f"{WIKI_BASE}{quote(first + '_' + last + '_(author)')}")
+        candidates.append(f"{WIKI_BASE}{quote(first + '_' + last + '_(writer)')}")
         candidates.append(f"{WIKI_BASE}{quote(last + ',_' + first)}")
+        candidates.append(f"{WIKI_BASE}{quote(last + ',_' + first + '_(author)')}")
+        candidates.append(f"{WIKI_BASE}{quote(last + ',_' + first + '_(writer)')}")
     # Fallback: raw full name
     candidates.append(f"{WIKI_BASE}{quote(full_name.replace(' ', '_'))}")
+    # Fallback: (writer), (author)
+    candidates.append(f"{WIKI_BASE}{quote(full_name.replace(' ', '_')  + '_(author)')}")
+    candidates.append(f"{WIKI_BASE}{quote(full_name.replace(' ', '_')  + '_(writer)')}") 
     return candidates
 
 def fetch_page(url):
