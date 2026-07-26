@@ -253,7 +253,7 @@ def ensure_page_one_events(conn, report=None):
                 VALUES (?, ?, ?, 1, ?, ?, ?)
                 """,
                 (
-                    ":".join(earliest["source"],str(issue_id),parse_date(earliest['date']).strftime("%Y-%m-%d") ,str(1)), # source_id convention
+                    ":".join([earliest["source"], str(issue_id), parse_date(earliest['date']).strftime("%Y-%m-%d"), str(1)]), # source_id convention
                     issue_id,
                     earliest["date"],
                     earliest["source"],
