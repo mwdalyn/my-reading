@@ -10,6 +10,10 @@ on:
   issue_comment:
     types: [created, edited]
 
+concurrency:
+  group: reading-db-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -24,13 +28,7 @@ jobs:
       
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
-
-      # - name: Cache pip # Before dependencies, creates requirements.txt
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: ~/.cache/pip
-      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          python-version: "3.9" # TODO: Update this
 
       - name: Clear pip cache (debug)
         run: |
@@ -54,25 +52,28 @@ jobs:
           # WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }} # May need for other workflows
           PYTHONPATH: .
         run: |
-          python scripts/sync.py
-
-      - name: Commit updated DB
-        run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          # Add the updated DB
-          git add data/reading.sqlite
-
-          # Commit only if there are changes
-          if ! git diff-index --quiet HEAD --; then
-            git commit -m "Update reading DB"
-          fi
-
-          # Retry loop for push (handles race conditions)
           for i in {1..5}; do
+            echo "Attempt $i"
+
+            # Get the latest DB state before syncing
             git fetch origin
-            git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
+            git reset --hard "origin/$(git rev-parse --abbrev-ref HEAD)"
+
+            # Regenerate the DB against the freshest state
+            python scripts/sync.py
+
+            git add data/reading.sqlite
+
+            if git diff-index --quiet HEAD --; then
+              echo "No changes to commit"
+              break
+            fi
+
+            git commit -m "Update reading DB"
+
             if git push origin HEAD; then
               echo "Push succeeded"
               break
@@ -81,5 +82,3 @@ jobs:
               sleep 2
             fi
           done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
