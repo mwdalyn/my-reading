@@ -59,7 +59,7 @@ BOOKS_COLUMNS = {
     "translator": "TEXT", # last_name, first_name
     "original_language":"TEXT DEFAULT 'en'", # Default to english code for now; want to track original language 
     "collection": "INTEGER DEFAULT 0", # 1 = 'TRUE' = collection of (short) stories; 0 = 'FALSE' = novel
-    # "format":"TEXT", # 'harcover' or 'paperback', opening things up to 'textbook' later (just in case)
+    "format":"TEXT", # 'harcover' or 'paperback', opening things up to 'textbook' later (just in case)
     "read_count":"INTEGER DEFAULT 0", # Number of times read before this time
     "genre_primary":"TEXT", # Must be from a default list, see constants.py
     "genre_secondary":"TEXT", # Must be from a default list, see constants.py
