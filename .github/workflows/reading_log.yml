@@ -6,7 +6,7 @@ permissions:
 
 on:
   issues:
-    types: [opened, edited, closed]
+    types: [opened, edited, closed, labeled]
   issue_comment:
     types: [created, edited]
 
