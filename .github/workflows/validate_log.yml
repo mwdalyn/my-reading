@@ -7,6 +7,10 @@ permissions:
   contents: write
   issues: read
 
+concurrency:
+  group: reading-db-sync
+  cancel-in-progress: false
+
 jobs:
   validate-db:
     runs-on: ubuntu-latest
@@ -26,13 +30,42 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --no-cache-dir -r requirements.txt
           
-      - name: Run database validation
+      - name: Validate database and commit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PYTHONPATH: .
         run: |
-          python scripts/validate.py
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          for i in {1..5}; do
+            echo "Attempt $i"
+
+            # Get the latest DB state before validating
+            git fetch origin
+            git reset --hard "origin/$(git rev-parse --abbrev-ref HEAD)"
+
+            # Re-run validation against the freshest state
+            python scripts/validate.py
+
+            git add data/reading.sqlite
+
+            if git diff-index --quiet HEAD --; then
+              echo "No changes to commit"
+              break
+            fi
+
+            git commit -m "Update reading DB"
+
+            if git push origin HEAD; then
+              echo "Push succeeded"
+              break
+            else
+              echo "Push failed, retrying..."
+              sleep 2
+            fi
+          done
 
       - name: Upload validation report from validate.py
         if: always()
@@ -40,31 +73,3 @@ jobs:
         with:
           name: validation-report
           path: data/validation_report.md
-
-      - name: Commit updated DB
-        run: |
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-
-            # Add the updated DB
-            git add data/reading.sqlite
-
-            # Commit only if there are changes
-            if ! git diff-index --quiet HEAD --; then
-              git commit -m "Update reading DB"
-            fi
-
-            # Retry loop for push (handles race conditions)
-            for i in {1..5}; do
-              git fetch origin
-              git rebase "origin/$(git rev-parse --abbrev-ref HEAD)" || git rebase --abort
-              if git push origin HEAD; then
-                echo "Push succeeded"
-                break
-              else
-                echo "Push failed, retrying..."
-                sleep 2
-              fi
-            done
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
