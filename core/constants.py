@@ -268,13 +268,32 @@ COUNTRIES_TO_REMOVE = {
     "Micronesia",
 }
 
+# STANDARDIZE_COUNTRIES = { # For now, this is not long-term ideal but gets us back on track
+#     "Kingdom of Italy":"Italy",
+#     "Russian Empire":"Russia",
+#     "England":"United Kingdom",
+#     "U.K.":"United Kingdom",
+#     "UK":"United Kingdom",
+#     "U.S.":"United States",
+#     "USA":"United States",
+#     "U.S.A.":"United States",
+# }
+
 STANDARDIZE_COUNTRIES = { # For now, this is not long-term ideal but gets us back on track
-    "Kingdom of Italy":"Italy",
-    "Russian Empire":"Russia",
-    "England":"United Kingdom",
-    "U.K.":"United Kingdom",
-    "UK":"United Kingdom",
-    "U.S.":"United States",
-    "USA":"United States",
-    "U.S.A.":"United States",
+    "Kingdom of Italy":{"birth_country":"Italy","nationality":"Italian"},
+    "Italy":{"birth_country":"Italy","nationality":"Italian"},
+    "Italia":{"birth_country":"Italy","nationality":"Italian"},
+    "Russian Empire":{"birth_country":"Russia","nationality":"Russian"},
+    "Russia":{"birth_country":"Russia","nationality":"Russian"},
+    "U.S.S.R.":{"birth_country":"Russia","nationality":"Russian"}, # Temporary, imprecise
+    "USSR":{"birth_country":"Russia","nationality":"Russian"}, # Temporary, imprecise
+    "England":{"birth_country":"United Kingdom","nationality":"English"},
+    "Scotland":{"birth_country":"United Kingdom","nationality":"Scottish"},
+    "Wales":{"birth_country":"United Kingdom","nationality":"Welsh"},
+    "Northern Ireland":{"birth_country":"United Kingdom","nationality":"Irish"},
+    "U.K.":{"birth_country":"United Kingdom","nationality":"English"}, # Temporary, imprecise
+    "UK":{"birth_country":"United Kingdom","nationality":"English"}, # Temporary, imprecise 
+    "U.S.":{"birth_country":"United States","nationality":"American"},
+    "USA":{"birth_country":"United States","nationality":"American"},
+    "U.S.A.":{"birth_country":"United States","nationality":"American"},
 }
