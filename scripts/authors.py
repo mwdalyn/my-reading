@@ -48,7 +48,7 @@ def sync_authors_from_books(db_path=DB_PATH):
                 last_name, first_name = full_name, None
         else:
             # Fallback: split on whitespace
-            parts = full_name.split()
+            parts = full_name.split() # TODO: For two-term first names and pronounced middles, need this to split on only the LAST whitespace
             first_name = parts[0]
             last_name = parts[-1] if len(parts) > 1 else None
         # Upsert: skip if full_name is already present, and COALESVE first, last just in case
@@ -180,8 +180,9 @@ def extract_author_fields(infobox):
         if len(parts) > 1:
             birth_country = parts[-1]
             birth_place = parts[-2]
+            if birth_place:
+                birth_place = re.sub(r'[^a-zA-Z\s-]', birth_place).lstrip() # Remove all not a letter, space, or dash; then leading whitespace
         print("Born parts:",parts)
-        # TODO: Add authors birth_place (town) to the mix at this point in the process #74
 
     # Death
     died = infobox.get("Died") # TODO: Would "Death" be one to check for? Or "__ Died:"
@@ -202,7 +203,7 @@ def extract_author_fields(infobox):
             age = current_year - birth_year
 
     # Nationality
-    nationality = infobox.get("Nationality")
+    nationality = infobox.get("Nationality") # TODO: Check for other terms?
     # Fallback: use birth country
     if not nationality and birth_country:
         nationality = birth_country
@@ -215,6 +216,7 @@ def extract_author_fields(infobox):
         "death_year": death_year,
         "age": age,
         "birth_country": birth_country,
+        "birth_place": birth_place,
         "nationality": nationality,
         "home_country": None,  # future logic
         "ref_count":ref_count
