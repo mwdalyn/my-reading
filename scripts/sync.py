@@ -65,8 +65,9 @@ def main():
     for comment in comments:
         if is_abandoned(comment["body"]):
             abandoned = True
-            break # TODO: Revisit this; if abandoned, shouldn't this section auto-close the issue before continuing? Or should auto-close come after processing existing comments, content?
-    
+            break 
+        # TODO: Revisit this; if abandoned, shouldn't this section auto-close the issue before continuing? Or should auto-close come after processing existing comments, content?
+        # TODO: If no "done" comment and max page commented/in body is < total_pages, and issue closes, consider abandoned.
     ## Log events
     # Source: Issue (body, e.g. backdating progress if Issue wasn't published on book start date)
     events = []
@@ -109,9 +110,6 @@ def main():
     # Parse datetimes
     issue_created_date = parse_date(issue["created_at"]).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
     earliest_event_date_obj = parse_date(earliest_event_date).strftime("%Y-%m-%d %H:%M:%S") if earliest_event_date else None
-
-    # QA/QC: Infill missing created_on values for books table
-    fill_missing_created_on(conn) # NOTE: TODO: This could likely be removed? Function duplicated by validate.py
 
     # Determine status before upsert
     status = "abandoned" if abandoned else ("completed" if issue["state"] == "closed" else "reading")

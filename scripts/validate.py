@@ -22,10 +22,10 @@ from core.constants import *
 
 # Setup
 if not GITHUB_TOKEN:
-    raise RuntimeError("GITHUB_TOKEN not set")
+    raise RuntimeError("GITHUB_TOKEN not set") # Script can only run via Github Actions
 
 if not GITHUB_REPOSITORY:
-    raise RuntimeError("GITHUB_REPOSITORY not set")
+    raise RuntimeError("GITHUB_REPOSITORY not set") # Script can only run via Github Actions
 
 # Reporting class for logging/stashing updates
 class ValidationReport:
@@ -81,7 +81,7 @@ def get_issue_metadata(issue_number):
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
         "Accept": "application/vnd.github+json",
-    }
+    } # TODO: I believe this is where the validation report is going fatal
 
     resp = requests.get(url, headers=headers)
     resp.raise_for_status()
@@ -117,18 +117,6 @@ def fix_books_dates(conn, report=None):
                     old=None,
                     new=issue_meta["created_at"],
                 )
-        
-        # if book["date_began"] is not None:
-        #     # TODO: Enforce date_began either itself OR minimum reading_event recorded
-        #     if report:
-        #         report.record(
-        #             rule="Books: date_began match earliest reading_event",
-        #             table="books",
-        #             identifier=f"issue_number={book['issue_number']}",
-        #             column="date_began",
-        #             old=None,
-        #             new=issue_meta["created_at"],
-        #         )
 
         # date_ended
         if book["date_ended"] is None and book["status"] == "completed":
