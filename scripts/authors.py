@@ -167,6 +167,7 @@ def extract_author_fields(infobox):
     age = None
     birth_country = None
     birth_place = None
+    home_country = None
     nationality = None
     ref_count = None
     # Birth
@@ -206,10 +207,16 @@ def extract_author_fields(infobox):
     nationality = infobox.get("Nationality") # TODO: Check for other terms?
     # Fallback: use birth country
     if not nationality and birth_country:
-        nationality = birth_country
+        try:
+            nationality = STANDARDIZE_COUNTRIES.get(birth_country, {}).get("nationality") 
+        except:
+            nationality = birth_country
     # Standardize birth_country
     if birth_country:
-        birth_country = STANDARDIZE_COUNTRIES.get(birth_country, birth_country)
+        birth_country = STANDARDIZE_COUNTRIES.get(birth_country, {}).get("birth_country") 
+    # Fix up home_country as well, for now
+    if not home_country:
+        home_country = birth_country
     # Return dict
     return {
         "birth_year": birth_year,
@@ -218,7 +225,7 @@ def extract_author_fields(infobox):
         "birth_country": birth_country,
         "birth_place": birth_place,
         "nationality": nationality,
-        "home_country": None,  # future logic
+        "home_country": home_country,
         "ref_count":ref_count
     }
 
