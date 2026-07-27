@@ -228,12 +228,13 @@ def create_bar_book_velocity(db_path=DB_PATH, chart_name='bar_book_velocity'):
     df = pd.read_sql(
         """
         SELECT title, total_pages, 
-               JULIANDAY(date_ended) - JULIANDAY(date_began) AS days_taken
+            -- Floor speed of 1 day, which matches intent, and adds 1 for inclusive calendar days
+            MAX(1, CAST(JULIANDAY(date_ended) - JULIANDAY(date_began) AS INTEGER) + 1) AS days_taken
         FROM books
         WHERE status='completed'
-          AND total_pages IS NOT NULL
-          AND date_began IS NOT NULL
-          AND date_ended IS NOT NULL
+            AND total_pages IS NOT NULL
+            AND date_began IS NOT NULL
+            AND date_ended IS NOT NULL
         """, conn)
     conn.close()
     # Avoid division by zero
