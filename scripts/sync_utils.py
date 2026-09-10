@@ -89,7 +89,7 @@ def parse_float(value):
 
 def parse_title(title):
     '''Simple title parse for each Issue.'''
-    for sep in ["—", "-"]:
+    for sep in [" — ", " - "]:
         if sep in title:
             t, a = title.split(sep, 1)
             return t.strip(), a.strip()
